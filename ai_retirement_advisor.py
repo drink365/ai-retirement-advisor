@@ -4,7 +4,7 @@ import pandas as pd
 
 def calculate_retirement_cashflow(current_age, retirement_age, monthly_expense, total_assets, annual_return_rate):
     """
-    計算退休現金流，確保資產能夠支撐到壽命終點
+    計算退休現金流，確保資產能夠支撐到壽命終點，並扣除退休支出。
     """
     years_in_retirement = 100 - retirement_age  # 假設壽命 100 歲
     annual_expense = monthly_expense * 12
