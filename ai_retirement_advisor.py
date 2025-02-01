@@ -133,13 +133,15 @@ def calculate_retirement_cashflow(
 # ===========================
 # 主程式：使用者介面
 # ===========================
-st.set_page_config(page_title="AI 退休顧問", layout="wide")
-st.header("📢 AI 智能退休顧問")
+st.set_page_config(page_title="AI退休助手Nana", layout="wide")
+st.header("👋 嗨，我是您的退休助手 Nana")
+st.markdown("歡迎使用 AI 退休助手 Nana，讓我們一起規劃您夢想中的退休生活！")
 
 # ─────────────────────────
 # 一、基本資料輸入區
 # ─────────────────────────
 st.subheader("基本資料")
+st.info("請先提供您的基本資料，讓我能夠更了解您的現況並量身訂做退休藍圖。")
 col1, col2 = st.columns(2)
 with col1:
     current_age = st.number_input("目前年齡", min_value=18, max_value=100, value=40)
@@ -162,6 +164,7 @@ inflation_rate = st.number_input("通膨率 (%)", min_value=0.0, value=2.0, step
 # 二、住房狀況輸入區
 # ─────────────────────────
 st.subheader("住房狀況")
+st.info("住房對退休規劃也非常重要，請根據您的情況選擇租房或購房，Nana會協助您進行比較與規劃。")
 monthly_rent = st.number_input("每月租金", min_value=1000, value=20000, step=1000)
 housing_choice = st.selectbox("住房選擇", ["租房", "購房"])
 if housing_choice == "租房":
@@ -184,6 +187,7 @@ else:
 # 三、一次性支出管理
 # ─────────────────────────
 st.subheader("一次性支出 (偶發性)")
+st.info("如果您預期未來有特殊支出（例如大額醫療費或旅遊計劃），請在這裡記錄，我們會將它們納入規劃中。")
 if "lumpsum_list" not in st.session_state:
     st.session_state["lumpsum_list"] = []
 
@@ -198,24 +202,24 @@ with st.container():
     if submitted_lumpsum:
         if new_age >= 30 and new_amt != 0:
             st.session_state["lumpsum_list"].append({"年齡": new_age, "金額": new_amt})
-            st.success(f"新增成功：年齡 {new_age}，金額 {new_amt}")
+            st.success(f"已成功新增一次性支出：年齡 {new_age}，金額 {new_amt} 元。")
             safe_rerun()
         else:
-            st.warning("無效輸入：年齡須 ≥ 30 且金額 ≠ 0。")
+            st.warning("輸入有誤：年齡必須 ≥ 30 且金額不可為 0。")
 
 if st.session_state["lumpsum_list"]:
-    st.markdown("**目前一次性支出項目：**")
+    st.markdown("**目前已新增的一次性支出項目：**")
     for idx, entry in enumerate(st.session_state["lumpsum_list"]):
         if st.button(f"刪除：年齡 {entry['年齡']}、金額 {entry['金額']}", key=f"del_{idx}"):
             del st.session_state["lumpsum_list"][idx]
-            st.success("刪除成功！")
+            st.success("已成功刪除該支出項目！")
             safe_rerun()
 
 # ─────────────────────────
 # 四、計算並顯示預估退休現金流
 # ─────────────────────────
 st.subheader("預估退休現金流")
-with st.spinner("計算中..."):
+with st.spinner("Nana 正在仔細計算您的退休藍圖，請稍候..."):
     df_result = calculate_retirement_cashflow(
         current_age=current_age,
         retirement_age=retirement_age,
@@ -253,12 +257,13 @@ with st.spinner("計算中..."):
     
     styled_df = df_result.style.format("{:,.0f}").applymap(color_negative_red)
     st.dataframe(styled_df, use_container_width=True)
+st.success("計算完成！以上為根據您資料的退休現金流預估結果。")
 
 # ─────────────────────────
 # 五、退休風格測驗與智能建議報告
 # ─────────────────────────
 st.subheader("退休風格測驗與智能建議報告")
-# 退休風格測驗：讓用戶選擇理想的退休生活風格，並推薦目標資產
+st.info("來玩個小測驗吧，告訴我您理想中的退休生活風格，Nana 將根據您的答案給出專屬建議！")
 retire_style = st.radio("請問您的理想退休生活風格？", ["低調簡約", "舒適中產", "高端奢華"], key="retire_style")
 if retire_style == "低調簡約":
     recommended_target = 10000000
@@ -286,14 +291,13 @@ if len(retire_idx) > 0:
     
     if gap > 0:
         st.markdown("**建議：**")
-        st.markdown("• 您目前的儲蓄與投資計劃可能不足以達成您的退休目標。")
-        st.markdown("• 建議您考慮延後退休、增加每月儲蓄、或調整投資組合以期望獲得更高的投資報酬率。")
-        st.markdown("• 如需專業建議，您可以預約免費的財務規劃諮詢，我們的專家會根據您的情況提供專屬策略。")
+        st.markdown("• 您目前的儲蓄與投資計劃可能尚未達到理想狀態，建議您考慮延後退休、增加每月儲蓄或調整投資組合。")
+        st.markdown("• 若需要更多協助，歡迎預約免費的財務規劃諮詢，我們的專家將為您提供專屬策略。")
         st.markdown('<a href="https://www.gracefo.com" target="_blank"><button style="padding:10px 20px;background-color:#4CAF50;color:white;border:none;border-radius:5px;">立即預約免費諮詢</button></a>', unsafe_allow_html=True)
     else:
-        st.markdown("恭喜您！根據目前數據，您的退休規劃已達標。請持續關注投資與支出動態，保持良好財務習慣。")
+        st.markdown("太棒了！看起來您的退休規劃已達標，請持續關注投資與支出動態，保持良好財務習慣。")
 else:
-    st.markdown("無法取得您在退休年齡的累積資產數據，請檢查您的輸入資料。")
+    st.markdown("抱歉，無法取得您在退休年齡的累積資產數據，請檢查輸入資料是否正確。")
 
 # ─────────────────────────
 # 六、圖表呈現：累積結餘趨勢
@@ -316,6 +320,7 @@ st.altair_chart(line_chart, use_container_width=True)
 # 七、敏感性分析：通膨率對累積結餘的影響
 # ─────────────────────────
 st.subheader("敏感性分析：通膨率對累積結餘的影響")
+st.info("透過下列圖表，您可以了解不同通膨率情境下的累積結餘走勢，幫助您做更全面的規劃。")
 inf_min = st.number_input("最低通膨率 (%)", value=inflation_rate - 1, step=0.1, key="inf_min")
 inf_max = st.number_input("最高通膨率 (%)", value=inflation_rate + 1, step=0.1, key="inf_max")
 inflation_scenarios = np.linspace(inf_min, inf_max, 5)
@@ -362,5 +367,4 @@ st.altair_chart(inf_chart, use_container_width=True)
 # ─────────────────────────
 # 八、行銷資訊
 # ─────────────────────────
-st.markdown("如需專業協助，歡迎造訪 [永傳家族辦公室](https://www.gracefo.com)")
-
+st.markdown("若您需要更多協助，隨時歡迎造訪 [永傳家族辦公室](https://www.gracefo.com) 或與 Nana 聯繫，我們樂意為您服務！")
