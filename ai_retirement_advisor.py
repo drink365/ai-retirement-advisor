@@ -88,6 +88,6 @@ df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退�
                                  "家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"])
 df = df.style.applymap(lambda x: 'color: red;' if isinstance(x, (int, float)) and x < 0 else '', subset=["年度結餘", "累積結餘"])
 for col in df.columns[1:]:
-    df[col] = df[col].apply(lambda x: f"{int(float(x)):,}" if isinstance(x, (int, float, str)) and str(x).replace(',', '').replace('-', '').isdigit() else x)
+    df[col] = df[col].apply(lambda x: f"{int(float(x)):,}" if isinstance(x, (int, float)) else x)
 st.subheader("📊 退休現金流預測")
 st.markdown(df.to_html(escape=False), unsafe_allow_html=True)
