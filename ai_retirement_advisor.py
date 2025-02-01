@@ -120,8 +120,8 @@ def calculate_retirement_cashflow(
 # 主程式：使用者介面
 # ===========================
 st.set_page_config(page_title="AI退休助手 Nana", layout="wide")
-st.header("嗨！我是 Nana 😊")
-st.markdown("讓退休規劃變得簡單又安心！利用最先進的 AI 技術，我能快速計算並提供專業的分析，陪你一起規劃美好的未來。")
+st.header("👋 嗨！我是 Nana， 你的 AI 退休助手！")
+st.markdown("我可以幫你計算 **退休金需求、投資報酬預測、通膨影響、房產決策**，還可以評估你的 **財務健康指數**，讓你快速掌握退休規劃進度！ 😊")
 
 # ─────────────────────────
 # 一、基本資料輸入區
@@ -163,8 +163,8 @@ if housing_choice == "租房":
 else:
     buy_age = st.number_input("計劃購房年齡", min_value=18, max_value=expected_lifespan, value=40)
     home_price = st.number_input("房屋總價 (元)", key="home_price", value=15000000, step=100000, on_change=update_payments)
-    down_payment = st.number_input("首付款 (元)", key="down_payment", value=st.session_state.get("down_payment", int(15000000*0.3)), step=100000)
-    loan_amount = st.number_input("貸款金額 (元)", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000*0.3)), step=100000)
+    down_payment = st.number_input("首付款 (元)", key="down_payment", value=st.session_state.get("down_payment", int(15000000 * 0.3)), step=100000)
+    loan_amount = st.number_input("貸款金額 (元)", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000 * 0.3)), step=100000)
     loan_term = st.number_input("貸款年期 (年)", min_value=1, max_value=50, value=30)
     loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
 
@@ -213,7 +213,7 @@ with st.spinner("Nana 正在快速計算，請稍候..."):
         rent_or_buy=housing_choice,
         monthly_rent=monthly_rent,
         buy_age=buy_age,
-        home_price=home_price if housing_choice=="購房" else 0,
+        home_price=home_price if housing_choice == "購房" else 0,
         down_payment=down_payment,
         loan_amount=loan_amount,
         loan_term=loan_term,
@@ -243,6 +243,47 @@ with st.spinner("Nana 正在快速計算，請稍候..."):
     styled_df = df_result.style.format("{:,.0f}").applymap(color_negative_red)
     st.dataframe(styled_df, use_container_width=True)
 st.success("計算完成，以上是你的退休現金流預估結果。")
+
+# ─────────────────────────
+# 財務健康指數小提醒
+# ─────────────────────────
+with st.expander("📊 財務健康指數", expanded=True):
+    st.markdown("💡 **Nana 幫你評估你的財務健康指數！**")
+    
+    target_asset = st.number_input("🎯 你的理想退休資產（元）", min_value=0, value=10000000, step=1000000)
+    
+    # 利用前面相同的參數計算預計退休時的累積結餘
+    projected_asset = calculate_retirement_cashflow(
+        current_age=current_age,
+        retirement_age=retirement_age,
+        expected_lifespan=expected_lifespan,
+        monthly_expense=monthly_expense,
+        rent_or_buy=housing_choice,
+        monthly_rent=monthly_rent,
+        buy_age=buy_age,
+        home_price=home_price if housing_choice == "購房" else 0,
+        down_payment=down_payment,
+        loan_amount=loan_amount,
+        loan_term=loan_term,
+        loan_rate=loan_rate,
+        annual_salary=annual_salary,
+        salary_growth=salary_growth,
+        investable_assets=investable_assets,
+        investment_return=investment_return,
+        inflation_rate=inflation_rate,
+        retirement_pension=retirement_pension,
+        lumpsum_list=st.session_state["lumpsum_list"]
+    ).iloc[-1]["累積結餘"]
+    
+    health_score = int((projected_asset / target_asset) * 100) if target_asset > 0 else 0
+    st.metric(label="📈 Nana 給你的財務健康指數", value=f"{health_score} 分", delta=health_score - 80)
+    
+    st.info("""
+    **💡 Nana 提醒你：**  
+    **📌 80 分以上：你的財務規劃相當穩健！** 🎉  
+    **📌 60-79 分：建議適度調整投資或儲蓄！** 💡  
+    **📌 低於 60 分：請儘早檢視退休計畫，可能有資金不足風險！** ⚠️  
+    """)
 
 # ─────────────────────────
 # 五、退休風格測驗與智能建議報告
@@ -316,7 +357,7 @@ for ir in inflation_scenarios:
         rent_or_buy=housing_choice,
         monthly_rent=monthly_rent,
         buy_age=buy_age,
-        home_price=home_price if housing_choice=="購房" else 0,
+        home_price=home_price if housing_choice == "購房" else 0,
         down_payment=down_payment,
         loan_amount=loan_amount,
         loan_term=loan_term,
