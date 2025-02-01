@@ -1,6 +1,19 @@
 import streamlit as st
 import pandas as pd
 
+# ----------------------------
+# 定義安全重新載入頁面的函式
+# ----------------------------
+def safe_rerun():
+    """
+    若 Streamlit 支援 experimental_rerun 則重新載入頁面，
+    否則顯示錯誤訊息，請使用者更新 Streamlit 版本。
+    """
+    if hasattr(st, "experimental_rerun"):
+        st.experimental_rerun()
+    else:
+        st.error("您的 Streamlit 版本不支援重新載入功能，請更新 Streamlit 至最新版本。")
+
 # =============================
 # 1) 計算退休現金流函式
 # =============================
@@ -150,7 +163,7 @@ with st.form("add_lumpsum"):
         if new_age >= 30 and new_amt > 0:
             st.session_state["lumpsum_list"].append({"年齡": new_age, "金額": new_amt})
             st.success(f"新增成功：年齡 {new_age}，金額 {new_amt}")
-            st.experimental_rerun()  # 重新載入頁面，確保更新資料
+            safe_rerun()  # 重新載入頁面，確保更新資料
         else:
             st.warning("無效輸入：年齡須 ≥ 30 且金額 > 0。")
 
@@ -159,7 +172,7 @@ for idx, entry in enumerate(st.session_state["lumpsum_list"]):
     if st.button(f"刪除：年齡 {entry['年齡']}、金額 {entry['金額']}", key=f"del_{idx}"):
         del st.session_state["lumpsum_list"][idx]  # 直接刪除該項
         st.success("刪除成功！")
-        st.experimental_rerun()  # 重新載入頁面以更新清單
+        safe_rerun()  # 重新載入頁面以更新清單
 
 # -----------------------------
 # 計算退休現金流
