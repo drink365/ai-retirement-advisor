@@ -32,6 +32,7 @@ if loan_amount > 0 and loan_term > 0:
     
         for i, year in enumerate(years):
         salary_income = int(annual_salary) if year <= retirement_age else 0
+        salary_income = int(annual_salary) if year <= retirement_age else 0
         if year < retirement_age:
             annual_salary *= (1 + salary_growth / 100)
         investment_income = int(remaining_assets * (investment_return / 100)) if remaining_assets > 0 else 0
