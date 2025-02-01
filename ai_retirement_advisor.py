@@ -90,4 +90,4 @@ df = df.applymap(lambda x: f"<span style='color:red;'>{int(x):,}</span>" if isin
 
 st.markdown(df.to_html(escape=False), unsafe_allow_html=True)
 st.subheader("📊 退休現金流預測")
-st.dataframe(df)
+st.markdown(df.to_html(escape=False), unsafe_allow_html=True)
