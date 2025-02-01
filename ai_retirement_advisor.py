@@ -18,8 +18,6 @@ st.markdown("""
 還可以評估你的 **財務健康指數**，讓你快速掌握退休規劃進度！  
 """)
 
-st.markdown("📌 **立即體驗 Nana 👉 [https://ai-retirement.streamlit.app/](https://ai-retirement.streamlit.app/)**")
-
 # ----------------------------
 # 一、基本資料輸入區
 # ----------------------------
@@ -46,7 +44,7 @@ with st.expander("📋 基本資料", expanded=True):
     inflation_rate = st.number_input("📉 通膨率 (%)", min_value=0.0, value=2.0, step=0.1)
 
 # ----------------------------
-# 住房狀況輸入區
+# 二、住房狀況輸入區
 # ----------------------------
 with st.expander("🏡 住房狀況", expanded=True):
     st.markdown("💡 **Nana 小提醒：不同的住房選擇會影響你的退休財務！**")
@@ -63,11 +61,27 @@ with st.expander("🏡 住房狀況", expanded=True):
         loan_rate = st.number_input("📈 貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
 
 # ----------------------------
+# 四、預估退休現金流與趨勢
+# ----------------------------
+with st.expander("📊 預估退休現金流與趨勢", expanded=True):
+    st.markdown("💡 **Nana 幫你模擬退休財務趨勢，看看你的資產變化！**")
+
+    df_chart = pd.DataFrame({
+        "年齡": list(range(40, 100)),  # 假設年齡範圍
+        "累積結餘": np.linspace(10000000, 5000000, 60)  # 假設數據
+    })
+    line_chart = alt.Chart(df_chart).mark_line(point=True).encode(
+        x=alt.X("年齡:Q", title="年齡"),
+        y=alt.Y("累積結餘:Q", title="累積結餘"),
+        tooltip=["年齡", "累積結餘"]
+    ).properties(
+        title="📈 累積結餘隨年齡變化"
+    )
+    st.altair_chart(line_chart, use_container_width=True)
+
+# ----------------------------
 # 行銷資訊
 # ----------------------------
-st.markdown("🚀 **現在就來體驗 AI 退休助手 Nana！**")
-st.markdown("📍 **[立即免費試用](https://ai-retirement.streamlit.app/)**")
-
 st.markdown("---")
 st.markdown("🌟 **Nana 由 [永傳家族辦公室](https://www.gracefo.com) 提供**")
 st.markdown("🔗 **了解更多 👉 [www.gracefo.com](https://www.gracefo.com)**")
