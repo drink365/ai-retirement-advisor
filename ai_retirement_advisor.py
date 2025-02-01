@@ -58,22 +58,22 @@ retirement_age = st.number_input("您計劃退休的年齡", min_value=current_a
 expected_lifespan = st.number_input("預期壽命（歲）", min_value=70, max_value=110, value=100)
 
 st.subheader("📌 家庭開銷")
-monthly_expense = st.number_input("每月生活支出（元）", min_value=1000, max_value=500000, value=30,000, format="%d")
+monthly_expense = st.number_input("每月生活支出（元）", min_value=1000, max_value=500000, value=30000, format="%d")
 
 st.subheader("📌 住房計畫")
 rent_or_buy = st.radio("您的住房計畫", ["租房", "買房"])
 if rent_or_buy == "租房":
-    rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20,000, format="%d")
+    rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
     buy_age, home_price, down_payment, loan_term, loan_rate = None, None, None, None, None
 else:
     buy_age = st.number_input("計劃買房年齡", min_value=current_age, max_value=80, value=current_age)
-    home_price = st.number_input("預計買房價格（元）", min_value=0, value=15,000,000, format="%d")
+    home_price = st.number_input("預計買房價格（元）", min_value=0, value=15000000, format="%d")
     down_payment = st.number_input("頭期款（元）", min_value=0, value=int(home_price * 0.3), format="%d")
     loan_term = st.number_input("貸款年限（年）", min_value=1, max_value=40, value=30)
     loan_rate = st.slider("房貸利率（%）", min_value=0.1, max_value=10.0, value=3.0, step=0.1)
 
 st.subheader("📌 財務狀況")
-annual_salary = st.number_input("目前家庭年薪（元）", min_value=500000, max_value=100000000, value=1,000,000, format="%d")
+annual_salary = st.number_input("目前家庭年薪（元）", min_value=500000, max_value=100000000, value=1000000, format="%d")
 salary_growth = st.slider("預計薪資成長率（%）", min_value=0.0, max_value=10.0, value=2.0, step=0.1)
 investable_assets = st.number_input("目前可投資之資金（元）", min_value=0, max_value=1000000000, value=1,000,000, format="%d")
 investment_return = st.slider("預期投報率（%）", min_value=0.1, max_value=10.0, value=5.0, step=0.1)
