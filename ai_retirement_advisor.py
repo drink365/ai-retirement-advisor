@@ -16,12 +16,12 @@ def calculate_retirement_cashflow(
 ):
     """
     計算退休現金流:
-      - 收入: 薪資、投資收益、退休年金
+      - 收入: 薪資, 投資收益, 退休年金
       - 支出:
          1) 生活費(含通膨)
          2) 住房費(租房 or 買房)
          3) 一次性支出 lumpsum(不含通膨)
-      - 僅計算 lumpsum_df 中年齡>=current_age & 金額>0 的行
+      - 只計算 lumpsum_df 中(年齡>=current_age & 金額>0)的行
     """
 
     ages = list(range(current_age, expected_lifespan + 1))
@@ -34,12 +34,12 @@ def calculate_retirement_cashflow(
         lr_monthly = loan_rate/100/12
         monthly_mortgage = (
             loan_amount*lr_monthly
-            / (1-(1+lr_monthly)**(-loan_term*12))
+            / (1 - (1+lr_monthly)**(-loan_term*12))
         )
 
     # lumpsum_df 可能為空
     if lumpsum_df.empty:
-        lumpsum_df = pd.DataFrame(columns=["年齡","金額"])
+        lumpsum_df = pd.DataFrame(columns=["ID","年齡","金額"])
 
     for i, age in enumerate(ages):
         # 薪資
@@ -62,7 +62,6 @@ def calculate_retirement_cashflow(
         if rent_or_buy=="租房":
             housing_expense = int(rent_amount*12)
         else:
-            # 買房
             my = age - buy_age
             if my<0:
                 housing_expense = int(rent_before_buy*12)
@@ -73,11 +72,11 @@ def calculate_retirement_cashflow(
             else:
                 housing_expense = 0
 
-        # 通膨 => 經常支出
+        # 通膨 => base_expense
         base_expense = (living_expense + housing_expense)*((1+inflation_rate/100)**i)
 
-        # 一次性支出 lumpsum(不乘通膨)
-        lumpsum_expense = 0
+        # 一次性支出 lumpsum(不含通膨)
+        lumpsum_expense=0
         for _, row_data in lumpsum_df.iterrows():
             try:
                 expense_age = int(row_data["年齡"])
@@ -139,18 +138,24 @@ def calculate_retirement_cashflow(
 st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
-# 在 session_state 中存放 lumpsum_df，初始可為空
+# 在 session_state 中保留 lumpsum_df + next_id
 if "lumpsum_df" not in st.session_state:
-    # 若需要預設值，可加；否則給空DataFrame
-    st.session_state["lumpsum_df"] = pd.DataFrame(columns=["年齡","金額"])
+    # 預設 DataFrame 有 ID / 年齡 / 金額 三欄
+    st.session_state["lumpsum_df"] = pd.DataFrame(columns=["ID","年齡","金額"])
+if "next_id" not in st.session_state:
+    st.session_state["next_id"] = 1  # 用來給新行自動分配 ID
 
-# --- 基本資料 ---
+# -----------------------------------------------------------
+# 基本資料
+# -----------------------------------------------------------
 st.subheader("📌 基本資料")
 current_age = st.number_input("您的目前年齡", min_value=30, max_value=80, value=40)
 retirement_age = st.number_input("您計劃退休的年齡", min_value=current_age+1, max_value=90, value=60)
 expected_lifespan = st.number_input("預期壽命（歲）", min_value=70, max_value=110, value=100)
 
-# --- 家庭與財務狀況 ---
+# -----------------------------------------------------------
+# 家庭與財務狀況
+# -----------------------------------------------------------
 st.subheader("📌 家庭與財務狀況")
 monthly_expense = st.number_input("每月生活支出（元）", min_value=1000, max_value=500000, value=30000, format="%d")
 annual_salary = st.number_input("目前家庭年薪（元）", min_value=500000, max_value=100000000, value=1000000, format="%d")
@@ -160,13 +165,15 @@ investment_return = st.slider("預期投報率（%）", min_value=0.1, max_value
 inflation_rate = st.slider("通貨膨脹率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
 retirement_pension = st.number_input("退休年金（元/月）", min_value=0, max_value=500000, value=20000, format="%d")
 
-# --- 住房計畫 ---
+# -----------------------------------------------------------
+# 住房計畫
+# -----------------------------------------------------------
 st.subheader("📌 住房計畫")
 rent_or_buy = st.radio("您的住房計畫", ["租房","買房"])
 
 rent_amount=0
 rent_before_buy=0
-buy_age= home_price= down_payment= loan_amount= loan_term= loan_rate=0
+buy_age= home_price= down_payment= loan_amount= loan_term= loan_rate= 0
 monthly_mortgage_temp=0
 if rent_or_buy=="租房":
     rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
@@ -180,8 +187,8 @@ else:
     loan_rate= st.number_input("貸款利率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
 
     if loan_amount>0 and loan_term>0:
-        lr_monthly = loan_rate/100/12
-        monthly_mortgage_temp=(
+        lr_monthly= loan_rate/100/12
+        monthly_mortgage_temp = (
             loan_amount*lr_monthly / (1-(1+lr_monthly)**(-loan_term*12))
         )
     else:
@@ -189,61 +196,80 @@ else:
 
     st.write(f"每月房貸: {monthly_mortgage_temp:,.0f} 元")
 
-# -----------------------------
-# 一次性支出: 利用 st.data_editor
-# -----------------------------
+# -----------------------------------------------------------
+# 一次性支出(使用 st.data_editor  + 序號)
+# -----------------------------------------------------------
 st.subheader("📌 一次性支出 (偶發性)")
-st.write(f"請在下表中直接新增或編輯。年齡需 ≥ {current_age}，金額>0 才會計算；無效則跳過。")
+st.write(f"請在下表中直接新增或編輯。年齡需 ≥ {current_age}，金額>0。ID(序號)自動產生，不可編。")
 
-# 透過 column_config 指定型別，避免用戶輸入非法內容
-# num_rows="dynamic" 允許使用者按 + / - 添加或刪除列
+lumpsum_df = st.session_state["lumpsum_df"]
+
+# 對 lumpsum_df 做「自動分配 ID」的 post-processing：
+for idx in lumpsum_df.index:
+    # 若該行 ID 為空/NaN => 分配 next_id
+    if pd.isna(lumpsum_df.at[idx,"ID"]):
+        lumpsum_df.at[idx,"ID"] = st.session_state["next_id"]
+        st.session_state["next_id"] += 1
+
+# 使用 data_editor
+# - ID 欄位 read_only => 使用者無法編輯
+# - 年齡/金額 => 可編輯
+# - num_rows="dynamic" => 可按+號新增
+# - auto_add_last_row => False => 預設不顯示多餘空白行
+# - column_config => 避免使用者輸入非數字
 lumpsum_df_edited = st.data_editor(
-    st.session_state["lumpsum_df"],
+    lumpsum_df,
     column_config={
+        "ID": st.column_config.NumberColumn(
+            "序號", 
+            read_only=True
+        ),
         "年齡": st.column_config.NumberColumn(
-            "年齡(≥目前年齡)",
+            "年齡(≥目前年齡)", 
             min_value=current_age,
             step=1
         ),
         "金額": st.column_config.NumberColumn(
-            "金額(>0)",
+            "金額(>0)", 
             min_value=1,
             step=1000
         )
     },
     num_rows="dynamic",
+    auto_add_last_row=False,
     use_container_width=True
 )
 
-# 使用者在 data_editor 中做的修改會回傳 lumpsum_df_edited
-# 接下來我們要 parse: 若欄位有空值或 parse 失敗，就略過不影響其它行
-# 這裡直接更新 session_state
+# 更新 session_state
 st.session_state["lumpsum_df"] = lumpsum_df_edited
 
-# -----------------------------
+st.markdown("---")
+
+# -----------------------------------------------------------
 # 計算退休現金流
-# -----------------------------
+# -----------------------------------------------------------
 df_result = calculate_retirement_cashflow(
     current_age, retirement_age, expected_lifespan,
     monthly_expense, rent_or_buy, rent_amount, rent_before_buy,
     buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate,
     annual_salary, salary_growth, investable_assets,
     investment_return, inflation_rate, retirement_pension,
-    st.session_state["lumpsum_df"]  # 直接傳最新 DataFrame
+    st.session_state["lumpsum_df"]
 )
 
+# 美化
 def style_negative(val):
     color="red" if (isinstance(val,(int,float)) and val<0) else "black"
     return f"color: {color}"
 
-styled_df = df_result.style
 all_cols = df_result.columns
-styled_df = styled_df.applymap(style_negative, subset=pd.IndexSlice[:, all_cols])
-styled_df = styled_df.format("{:,.0f}", subset=pd.IndexSlice[:, all_cols])
+styled_df = df_result.style
+styled_df = styled_df.applymap(style_negative, subset=pd.IndexSlice[:,all_cols])
+styled_df = styled_df.format("{:,.0f}", subset=pd.IndexSlice[:,all_cols])
 
-# 這裡改為"預估現金流"
+# 顯示結果(改標題為"預估現金流")
 st.subheader("### 預估現金流")
-st.dataframe(styled_df, use_container_width=True)
+st.dataframe(styled_df,use_container_width=True)
 
 st.markdown("""
 ### 更多貼心提醒
