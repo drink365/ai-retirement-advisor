@@ -17,7 +17,6 @@ def safe_rerun():
 # =============================
 # 1) 計算退休現金流函式
 # =============================
-
 def calc_housing_expense(age, rent_or_buy, rent_amount, rent_before_buy, buy_age,
                          down_payment, monthly_mortgage, loan_term):
     """
@@ -52,28 +51,6 @@ def calculate_retirement_cashflow(
 ):
     """
     計算退休現金流，並回傳包含各年度詳細資料的 DataFrame。
-    
-    參數:
-      current_age: 當前年齡
-      retirement_age: 退休年齡
-      expected_lifespan: 預期壽命
-      monthly_expense: 每月生活費用
-      rent_or_buy: "租房" 或 "購房"
-      rent_amount: 租金金額
-      rent_before_buy: 購房前租金金額
-      buy_age: 購房年齡
-      home_price: 房屋總價（目前未使用，可作後續擴充）
-      down_payment: 首付款
-      loan_amount: 貸款金額
-      loan_term: 貸款年期
-      loan_rate: 貸款年利率（百分比）
-      annual_salary: 年薪
-      salary_growth: 年薪成長率（百分比）
-      investable_assets: 初始可投資資產
-      investment_return: 投資報酬率（百分比）
-      inflation_rate: 通膨率（百分比）
-      retirement_pension: 每月退休金
-      lumpsum_list: 一次性支出清單，格式為 List[{"年齡": 整數, "金額": 數值}]
     """
     ages = list(range(current_age, expected_lifespan + 1))
     data = []
@@ -131,13 +108,11 @@ def calculate_retirement_cashflow(
             total_expense, annual_balance, remaining_assets
         ])
 
-    # 直接建立 DataFrame 並指定最終欄位名稱
     df = pd.DataFrame(data, columns=[
         "年齡", "薪資收入", "投資收益", "退休年金", "總收入",
         "生活費用", "住房費用", "一次性支出", "總支出",
         "年度結餘", "累積結餘"
     ])
-
     return df
 
 # ===========================
@@ -146,47 +121,79 @@ def calculate_retirement_cashflow(
 st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
-# 使用 session_state 管理一次性支出資料
+# -----------------------------
+# 新增退休參數輸入區
+# -----------------------------
+with st.form("retirement_parameters"):
+    st.subheader("退休規劃參數")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        current_age = st.number_input("目前年齡", min_value=18, max_value=100, value=40)
+        retirement_age = st.number_input("退休年齡", min_value=current_age, max_value=100, value=60)
+        expected_lifespan = st.number_input("預期壽命", min_value=retirement_age, max_value=150, value=100)
+    with col2:
+        monthly_expense = st.number_input("每月生活費用", min_value=1000, value=30000, step=1000)
+        rent_or_buy = st.selectbox("住房選擇", ["租房", "購房"])
+        rent_amount = st.number_input("租金金額", min_value=1000, value=20000, step=1000)
+        rent_before_buy = st.number_input("購房前租金", min_value=1000, value=20000, step=1000)
+    with col3:
+        buy_age = st.number_input("購房年齡", min_value=current_age, max_value=expected_lifespan, value=48)
+        home_price = st.number_input("房屋總價", min_value=0, value=15000000, step=100000)
+        down_payment = st.number_input("首付款", min_value=0, value=4500000, step=100000)
+        loan_amount = st.number_input("貸款金額", min_value=0, value=10500000, step=100000)
+        loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=20)
+        loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=2.0, step=0.1)
+    col4, col5 = st.columns(2)
+    with col4:
+        annual_salary = st.number_input("年薪", min_value=0, value=1000000, step=10000)
+        salary_growth = st.number_input("年薪成長率 (%)", min_value=0.0, value=2.0, step=0.1)
+    with col5:
+        investable_assets = st.number_input("初始可投資資產", min_value=0, value=1000000, step=10000)
+        investment_return = st.number_input("投資報酬率 (%)", min_value=0.0, value=5.0, step=0.1)
+        inflation_rate = st.number_input("通膨率 (%)", min_value=0.0, value=2.0, step=0.1)
+        retirement_pension = st.number_input("退休月退休金", min_value=0, value=20000, step=1000)
+    
+    submit_params = st.form_submit_button("更新退休參數")
+
+# -----------------------------
+# 一次性支出管理（偶發性）
+# -----------------------------
 if "lumpsum_list" not in st.session_state:
     st.session_state["lumpsum_list"] = []
 
-# -----------------------------
-# 一次性支出管理（僅允許「新增」和「刪除」）
-# -----------------------------
 st.subheader("📌 一次性支出 (偶發性)")
-
 with st.form("add_lumpsum"):
-    new_age = st.number_input("新增一次性支出 - 年齡", min_value=30, max_value=110, value=40)
-    new_amt = st.number_input("新增一次性支出 - 金額", min_value=1, value=100000)
-    submitted = st.form_submit_button("新增")
-    if submitted:
+    new_age = st.number_input("新增一次性支出 - 年齡", min_value=30, max_value=110, value=40, key="new_age")
+    new_amt = st.number_input("新增一次性支出 - 金額", min_value=1, value=100000, key="new_amt")
+    submitted_lumpsum = st.form_submit_button("新增")
+    if submitted_lumpsum:
         if new_age >= 30 and new_amt > 0:
             st.session_state["lumpsum_list"].append({"年齡": new_age, "金額": new_amt})
             st.success(f"新增成功：年齡 {new_age}，金額 {new_amt}")
-            safe_rerun()  # 重新載入頁面，確保更新資料
+            safe_rerun()
         else:
             st.warning("無效輸入：年齡須 ≥ 30 且金額 > 0。")
 
-# 只提供「刪除」按鈕，避免出錯
+# 刪除一次性支出項目
 for idx, entry in enumerate(st.session_state["lumpsum_list"]):
     if st.button(f"刪除：年齡 {entry['年齡']}、金額 {entry['金額']}", key=f"del_{idx}"):
-        del st.session_state["lumpsum_list"][idx]  # 直接刪除該項
+        del st.session_state["lumpsum_list"][idx]
         st.success("刪除成功！")
-        safe_rerun()  # 重新載入頁面以更新清單
+        safe_rerun()
 
 # -----------------------------
-# 計算退休現金流
+# 當使用者點擊「更新退休參數」後進行計算
 # -----------------------------
-df_result = calculate_retirement_cashflow(
-    current_age=40, retirement_age=60, expected_lifespan=100, monthly_expense=30000,
-    rent_or_buy="租房", rent_amount=20000, rent_before_buy=20000,
-    buy_age=48, home_price=15000000, down_payment=4500000, loan_amount=10500000, loan_term=20, loan_rate=2.0,
-    annual_salary=1000000, salary_growth=2.0, investable_assets=1000000,
-    investment_return=5.0, inflation_rate=2.0, retirement_pension=20000,
-    lumpsum_list=st.session_state["lumpsum_list"]
-)
-
-st.subheader("### 預估現金流")
-st.dataframe(df_result.style.format("{:,.0f}"), use_container_width=True)
+if submit_params:
+    df_result = calculate_retirement_cashflow(
+        current_age=current_age, retirement_age=retirement_age, expected_lifespan=expected_lifespan, monthly_expense=monthly_expense,
+        rent_or_buy=rent_or_buy, rent_amount=rent_amount, rent_before_buy=rent_before_buy,
+        buy_age=buy_age, home_price=home_price, down_payment=down_payment, loan_amount=loan_amount, loan_term=loan_term, loan_rate=loan_rate,
+        annual_salary=annual_salary, salary_growth=salary_growth, investable_assets=investable_assets,
+        investment_return=investment_return, inflation_rate=inflation_rate, retirement_pension=retirement_pension,
+        lumpsum_list=st.session_state["lumpsum_list"]
+    )
+    st.subheader("### 預估現金流")
+    st.dataframe(df_result.style.format("{:,.0f}"), use_container_width=True)
 
 st.markdown("如需專業協助，歡迎造訪 [永傳家族辦公室](http://www.gracefo.com)")
