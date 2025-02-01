@@ -239,7 +239,7 @@ styled_df = df_result.style
 styled_df = styled_df.applymap(style_negative, subset=pd.IndexSlice[:,all_cols])
 styled_df = styled_df.format("{:,.0f}", subset=pd.IndexSlice[:,all_cols])
 
-st.subheader("### 計算結果")
+st.subheader("# 現金流預估試算")
 st.dataframe(styled_df)
 
 st.markdown("""
