@@ -34,7 +34,7 @@ def calc_housing_expense(age, rent_or_buy, monthly_rent, buy_age,
       - 若選擇購房：
           * 若年齡小於購房年齡：仍以每月租金計算（代表購房前租房）
           * 當年齡等於購房年齡：支付首付款及第一年的房貸
-          * 當年齡落在購房年齡與購房年齡＋貸款年期之間：以房貸月繳金額計算
+          * 當年齡落在購房年齡與貸款年期之間：以房貸月繳金額計算
           * 當超過購房年齡＋貸款年期：不再計算住房費用
     """
     if rent_or_buy == "租房":
@@ -59,6 +59,10 @@ def calculate_retirement_cashflow(
 ):
     """
     計算退休現金流，並回傳包含各年度詳細資料的 DataFrame。
+    欄位順序依次為：
+      年齡、薪資收入、投資收益、退休年金、總收入、
+      生活費用、住房費用、一次性支出、總支出、
+      年度結餘、累積結餘
     """
     ages = list(range(current_age, expected_lifespan + 1))
     data = []
@@ -70,7 +74,7 @@ def calculate_retirement_cashflow(
         lr_monthly = loan_rate / 100 / 12
         monthly_mortgage = loan_amount * lr_monthly / (1 - (1 + lr_monthly) ** (-loan_term * 12))
 
-    # 預先建立一次性支出的映射：年齡 -> 總金額
+    # 建立一次性支出的映射：年齡 -> 總金額
     lumpsum_map = {}
     for entry in lumpsum_list:
         try:
@@ -130,7 +134,7 @@ st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
 # ─────────────────────────
-# 一、基本資料輸入區（使用 st.columns 進行分欄排版，響應式呈現）
+# 一、基本資料輸入區（使用 st.columns 進行分欄排版）
 # ─────────────────────────
 st.subheader("基本資料")
 col1, col2 = st.columns(2)
@@ -148,7 +152,8 @@ with col3:
     investable_assets = st.number_input("初始可投資資產", min_value=0, value=1000000, step=10000)
 with col4:
     investment_return = st.number_input("投資報酬率 (%)", min_value=0.0, value=5.0, step=0.1)
-retirement_pension = st.number_input("退休月退休金", min_value=0, value=20000, step=1000)
+# 修改此處文字，由「退休月退休金」改為「每月退休金」
+retirement_pension = st.number_input("每月退休金", min_value=0, value=20000, step=1000)
 inflation_rate = st.number_input("通膨率 (%)", min_value=0.0, value=2.0, step=0.1)
 
 # ─────────────────────────
@@ -159,7 +164,7 @@ st.subheader("住房狀況")
 monthly_rent = st.number_input("每月租金", min_value=1000, value=20000, step=1000)
 housing_choice = st.selectbox("住房選擇", ["租房", "購房"])
 if housing_choice == "租房":
-    # 租房時，購房相關參數以預設值帶入計算
+    # 若租房，購房相關參數以預設值帶入計算
     buy_age = current_age  
     home_price = 0
     down_payment = 0
@@ -167,7 +172,7 @@ if housing_choice == "租房":
     loan_term = 0
     loan_rate = 0.0
 else:
-    # 允許購房年齡小於目前年齡（代表已購房），則貸款年期用來決定剩餘還款期數
+    # 允許購房年齡小於目前年齡（代表已購房），貸款年期用來決定剩餘還款期數
     buy_age = st.number_input("購房年齡", min_value=18, max_value=expected_lifespan, value=40)
     home_price = st.number_input("房屋總價", min_value=0, value=15000000, step=100000)
     down_payment = st.number_input("首付款", min_value=0, value=4500000, step=100000)
@@ -183,7 +188,7 @@ if "lumpsum_list" not in st.session_state:
     st.session_state["lumpsum_list"] = []
 
 with st.container():
-    col_ls1, col_ls2, col_ls3 = st.columns([1,1,2])
+    col_ls1, col_ls2, col_ls3 = st.columns([1, 1, 2])
     with col_ls1:
         new_age = st.number_input("新增支出 - 年齡", min_value=30, max_value=110, value=40, key="new_age")
     with col_ls2:
@@ -198,7 +203,6 @@ with st.container():
         else:
             st.warning("無效輸入：年齡須 ≥ 30 且金額 ≠ 0。")
 
-# 顯示目前一次性支出項目，並提供刪除按鈕
 if st.session_state["lumpsum_list"]:
     st.markdown("**目前一次性支出項目：**")
     for idx, entry in enumerate(st.session_state["lumpsum_list"]):
@@ -208,7 +212,7 @@ if st.session_state["lumpsum_list"]:
             safe_rerun()
 
 # ─────────────────────────
-# 四、計算並自動顯示結果（使用 st.spinner 提示計算中）
+# 四、計算並自動顯示結果（採用 st.spinner 提示計算中）
 # ─────────────────────────
 st.subheader("預估退休現金流")
 with st.spinner("計算中..."):
@@ -233,6 +237,20 @@ with st.spinner("計算中..."):
         retirement_pension=retirement_pension,
         lumpsum_list=st.session_state["lumpsum_list"]
     )
+    
+    # 將原有欄位重新分群：基本資料、收入、支出、結餘
+    new_columns = []
+    for col in df_result.columns:
+        if col == "年齡":
+            new_columns.append(("基本資料", "年齡"))
+        elif col in ["薪資收入", "投資收益", "退休年金", "總收入"]:
+            new_columns.append(("收入", col))
+        elif col in ["生活費用", "住房費用", "一次性支出", "總支出"]:
+            new_columns.append(("支出", col))
+        elif col in ["年度結餘", "累積結餘"]:
+            new_columns.append(("結餘", col))
+    df_result.columns = pd.MultiIndex.from_tuples(new_columns)
+    
     styled_df = df_result.style.format("{:,.0f}").applymap(color_negative_red)
     st.dataframe(styled_df, use_container_width=True)
 
