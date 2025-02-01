@@ -363,3 +363,4 @@ st.altair_chart(inf_chart, use_container_width=True)
 # 八、行銷資訊
 # ─────────────────────────
 st.markdown("如需專業協助，歡迎造訪 [永傳家族辦公室](https://www.gracefo.com)")
+
