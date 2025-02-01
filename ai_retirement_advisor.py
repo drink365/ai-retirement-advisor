@@ -4,7 +4,7 @@ import numpy as np
 import altair as alt
 
 # st.set_page_config 必須在所有其他 Streamlit 指令之前呼叫
-st.set_page_config(page_title="AI 退休顧問", layout="wide")
+st.set_page_config(page_title="AI 退休助手", layout="wide")
 
 # ----------------------------
 # 主題風格設定
@@ -135,7 +135,7 @@ def calculate_retirement_cashflow(
 # ===========================
 # 主程式：使用者介面
 # ===========================
-st.header("📢 AI 智能退休顧問")
+st.header("📢 AI 智能退休助手")
 
 # ─────────────────────────
 # 一、基本資料輸入區
