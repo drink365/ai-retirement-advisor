@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import altair as alt
 
-# st.set_page_config 必須是第一個被呼叫的 Streamlit 指令
+# st.set_page_config 必須在所有其他 Streamlit 指令之前呼叫
 st.set_page_config(page_title="AI 退休顧問", layout="wide")
 
 # ----------------------------
@@ -28,9 +28,6 @@ if theme == "深色":
 # 定義負數金額著色函式
 # ----------------------------
 def color_negative_red(val):
-    """
-    若數值為負，則回傳紅色字的 CSS 樣式。
-    """
     try:
         v = float(val)
     except Exception:
@@ -58,15 +55,6 @@ def update_payments():
 # =============================
 def calc_housing_expense(age, rent_or_buy, monthly_rent, buy_age,
                          down_payment, monthly_mortgage, loan_term):
-    """
-    計算住房費用：
-      - 若選擇租房：以「每月租金」計算（乘以 12）
-      - 若選擇購房：
-          * 若年齡小於購房年齡：仍以每月租金計算（代表購房前租房）
-          * 當年齡等於購房年齡：支付首付款及第一年的房貸
-          * 當年齡落在購房年齡與貸款年期之間：以房貸月繳金額計算
-          * 當超過購房年齡＋貸款年期：不再計算住房費用
-    """
     if rent_or_buy == "租房":
         return int(monthly_rent * 12)
     else:
@@ -87,13 +75,6 @@ def calculate_retirement_cashflow(
     investment_return, inflation_rate, retirement_pension,
     lumpsum_list
 ):
-    """
-    計算退休現金流，並回傳包含各年度詳細資料的 DataFrame。
-    欄位依次為：
-      年齡、薪資收入、投資收益、退休年金、總收入、
-      生活費用、住房費用、一次性支出、總支出、
-      年度結餘、累積結餘
-    """
     ages = list(range(current_age, expected_lifespan + 1))
     data = []
     remaining_assets = investable_assets
@@ -182,8 +163,10 @@ with st.expander("基本資料", expanded=True):
 # 二、住房狀況輸入區
 # ─────────────────────────
 with st.expander("住房狀況", expanded=True):
-    monthly_rent = st.number_input("每月租金", min_value=1000, value=20000, step=1000)
-    housing_choice = st.selectbox("住房選擇", ["租房", "購房"])
+    # 先讓用戶選擇住房選擇
+    housing_choice = st.selectbox("住房選擇", ["租房", "購房"], index=0)
+    # 輸入每月租金，預設 25,000 元
+    monthly_rent = st.number_input("每月租金", min_value=1000, value=25000, step=1000)
     if housing_choice == "租房":
         buy_age = current_age  
         home_price = 0
@@ -194,8 +177,8 @@ with st.expander("住房狀況", expanded=True):
     else:
         buy_age = st.number_input("購房年齡", min_value=18, max_value=expected_lifespan, value=40)
         home_price = st.number_input("房屋總價", key="home_price", value=15000000, step=100000, on_change=update_payments)
-        down_payment = st.number_input("首付款", key="down_payment", value=st.session_state.get("down_payment", int(15000000 * 0.3)), step=100000)
-        loan_amount = st.number_input("貸款金額", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000 * 0.3)), step=100000)
+        down_payment = st.number_input("首付款", key="down_payment", value=st.session_state.get("down_payment", int(15000000*0.3)), step=100000)
+        loan_amount = st.number_input("貸款金額", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000*0.3)), step=100000)
         loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=30)
         loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
 
@@ -372,26 +355,6 @@ with st.expander("敏感性分析：通膨率對累積結餘的影響", expanded
     st.altair_chart(inf_chart, use_container_width=True)
 
 # ─────────────────────────
-# 八、專家案例分享與互動諮詢
-# ─────────────────────────
-with st.expander("專家案例分享與互動諮詢", expanded=True):
-    st.markdown("### 專家案例分享")
-    st.markdown("""
-    **案例 1：小明的成功規劃**  
-    小明在 35 歲開始規劃退休，透過調整投資組合與節制開支，他在 60 歲時累積了超過 2500 萬元的退休資產，成功實現了舒適退休！
-    
-    **案例 2：小華的轉型之路**  
-    小華原本擔心退休金不足，後來透過 AI 智能退休顧問調整策略，不僅延後退休時間，還大幅增加每月儲蓄，最終在 65 歲退休時實現了財務自由。
-    """)
-    st.markdown("### 互動諮詢")
-    user_question = st.text_input("有什麼退休規劃的疑問？請輸入您的問題：")
-    if st.button("提交問題"):
-        if user_question:
-            st.markdown("🤖 **AI 顧問回覆：** 感謝您的提問！根據您的問題，我們建議您可以先檢視目前的投資組合，並考慮與專家進一步討論。")
-        else:
-            st.warning("請先輸入您的問題。")
-
-# ─────────────────────────
-# 九、行銷資訊
+# 八、行銷資訊
 # ─────────────────────────
 st.markdown("如需專業協助，歡迎造訪 [永傳家族辦公室](https://www.gracefo.com)")
