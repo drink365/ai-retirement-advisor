@@ -32,11 +32,6 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
         
         living_expense = int(monthly_expense * 12)
         if rent_or_buy == "租房":
-    rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
-else:
-    rent_amount = 0
-    rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
-    buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate, annual_salary, salary_growth = 0, 0, 0, 0, 0, 0, 1000000, 2.0
             housing_expense = int(rent_amount * 12)
         else:
             if year == buy_age:
@@ -74,7 +69,7 @@ st.subheader("📌 住房計畫")
 rent_or_buy = st.radio("您的住房計畫", ["租房", "買房"])
 if rent_or_buy == "租房":
     rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
-    buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate = 0, 0, 0, 0, 0, 0
+    buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate = [0] * 6
 else:
     buy_age = st.number_input("計劃買房年齡", min_value=current_age, max_value=80, value=current_age)
     home_price = st.number_input("預計買房價格（元）", min_value=0, value=15000000, format="%d")
@@ -89,8 +84,8 @@ else:
         st.write(f"每月房貸（元）: {int(monthly_mortgage):,}")
 
 data = calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan, monthly_expense, rent_or_buy, rent_amount,
-                                     buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate, annual_salary, salary_growth,
-                                     investable_assets, investment_return, inflation_rate, retirement_pension)
+                                     buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate, 1000000, 2.0,
+                                     1000000, 5.0, 2.0, 20000)
 
 if data:
     df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退休年金", "總收入","家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"])
