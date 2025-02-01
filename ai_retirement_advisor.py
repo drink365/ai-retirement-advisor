@@ -27,8 +27,24 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
         
         living_expense = int(monthly_expense * 12)
         if rent_or_buy == "租房":
+    rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
+    buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate, monthly_mortgage = None, None, None, None, None, None, None
             housing_expense = int(rent_amount * 12)
         else:
+    buy_age = st.number_input("計劃買房年齡", min_value=current_age, max_value=80, value=current_age)
+    home_price = st.number_input("預計買房價格（元）", min_value=0, value=15000000, format="%d")
+    down_payment = st.number_input("頭期款（元）", min_value=0, value=int(home_price * 0.3), format="%d")
+    loan_amount = home_price - down_payment
+    st.write(f"貸款金額（元）: {loan_amount:,}")
+    loan_term = st.number_input("貸款年限（年）", min_value=1, max_value=40, value=30)
+    loan_rate = st.slider("房貸利率（%）", min_value=0.1, max_value=10.0, value=3.0, step=0.1)
+    if loan_amount > 0 and loan_term > 0:
+        monthly_rate = loan_rate / 100 / 12
+        monthly_mortgage = (loan_amount * monthly_rate) / (1 - (1 + monthly_rate) ** (-loan_term * 12))
+        st.write(f"每月房貸（元）: {int(monthly_mortgage):,}")
+        loan_rate_monthly = loan_rate / 100 / 12
+        monthly_mortgage = (loan_amount * loan_rate_monthly) / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12))
+        st.write(f"每月房貸（元）: {int(monthly_mortgage):,}")
             if year == buy_age:
                 housing_expense = int(down_payment + (monthly_mortgage * 12))
             elif buy_age <= year < buy_age + loan_term:
@@ -87,4 +103,7 @@ data = calculate_retirement_cashflow(current_age, retirement_age, expected_lifes
 df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退休年金", "總收入","家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"])
 df = df.style.applymap(lambda x: 'color: red;' if isinstance(x, (int, float)) and x < 0 else '', subset=["年度結餘", "累積結餘"])
 st.subheader("📊 退休現金流預測")
+for col in df.columns[1:]:
+    df[col] = df[col].apply(lambda x: f"{int(x):,}" if isinstance(x, (int, float)) else x)
+
 st.markdown(df.to_html(escape=False), unsafe_allow_html=True)
