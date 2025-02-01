@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# ------------------------------------------------------------
+# ============================================================
 # 1) Functions
-# ------------------------------------------------------------
+# ============================================================
 def calculate_retirement_cashflow(
     current_age, retirement_age, expected_lifespan, monthly_expense,
     rent_or_buy, rent_amount, buy_age, home_price, down_payment,
@@ -23,12 +23,14 @@ def calculate_retirement_cashflow(
       - 一次性支出 (不考慮通膨)，在當年直接扣除 lumpsum
 
     更新：
-    1. 使用 st.experimental_data_editor 來輸入多筆一次性支出 (year, amount)。
+    1. 使用 st.data_editor 來輸入多筆一次性支出 (year, amount)。
        lumpsum 在當年發生時直接扣除，不做通膨調整。
     2. 「剩餘資產」欄位改為「累積結餘」，年度結餘 & 累積結餘置於「結餘」分群。
     3. 每月房貸欄位僅在「買房」時才顯示。
+    4. 允許 buy_age < current_age (已在過去買房，房貸只需繳剩餘年限)。
     """
 
+    # 年度列表 (從目前年齡一路到預期壽命)
     years = list(range(current_age, expected_lifespan + 1))
     data = []
     remaining_assets = investable_assets
@@ -82,6 +84,7 @@ def calculate_retirement_cashflow(
         base_expense = (living_expense + housing_expense) * ((1 + inflation_rate / 100) ** i)
 
         # 一次性支出 lumpsum，不做通膨
+        # 注意: other_expenses 是 DataFrame，列出多筆 (年份, 金額)
         lumpsum_expense = sum(
             row["金額"] for _, row in other_expenses.iterrows() if int(row["年份"]) == year
         )
@@ -89,6 +92,7 @@ def calculate_retirement_cashflow(
         # 總支出 = (經常支出 + lumpsum)
         total_expense = int(base_expense) + int(lumpsum_expense)
 
+        # 年度結餘
         annual_balance = total_income - total_expense
 
         # 累積結餘
@@ -206,8 +210,8 @@ initial_df = pd.DataFrame({
     "金額": [200000, 300000],  # 可自行預設或留空
 })
 
-# 使用 st.experimental_data_editor 讓使用者自由增減
-edited_df = st.experimental_data_editor(initial_df, num_rows="dynamic")
+# 使用 st.data_editor 讓使用者自由增減
+edited_df = st.data_editor(initial_df, num_rows="dynamic")
 
 # -----------------------------------------------------------
 # 計算退休現金流
