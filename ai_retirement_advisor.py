@@ -245,48 +245,7 @@ with st.spinner("Nana 正在快速計算，請稍候..."):
 st.success("計算完成，以上是你的退休現金流預估結果。")
 
 # ─────────────────────────
-# 財務健康指數小提醒
-# ─────────────────────────
-with st.expander("📊 財務健康指數", expanded=True):
-    st.markdown("💡 **Nana 幫你評估你的財務健康指數！**")
-    
-    target_asset = st.number_input("🎯 你的理想退休資產（元）", min_value=0, value=10000000, step=1000000)
-    
-    # 利用前面相同的參數計算預計退休時的累積結餘
-    projected_asset = calculate_retirement_cashflow(
-        current_age=current_age,
-        retirement_age=retirement_age,
-        expected_lifespan=expected_lifespan,
-        monthly_expense=monthly_expense,
-        rent_or_buy=housing_choice,
-        monthly_rent=monthly_rent,
-        buy_age=buy_age,
-        home_price=home_price if housing_choice == "購房" else 0,
-        down_payment=down_payment,
-        loan_amount=loan_amount,
-        loan_term=loan_term,
-        loan_rate=loan_rate,
-        annual_salary=annual_salary,
-        salary_growth=salary_growth,
-        investable_assets=investable_assets,
-        investment_return=investment_return,
-        inflation_rate=inflation_rate,
-        retirement_pension=retirement_pension,
-        lumpsum_list=st.session_state["lumpsum_list"]
-    ).iloc[-1]["累積結餘"]
-    
-    health_score = int((projected_asset / target_asset) * 100) if target_asset > 0 else 0
-    st.metric(label="📈 Nana 給你的財務健康指數", value=f"{health_score} 分", delta=health_score - 80)
-    
-    st.info("""
-    **💡 Nana 提醒你：**  
-    **📌 80 分以上：你的財務規劃相當穩健！** 🎉  
-    **📌 60-79 分：建議適度調整投資或儲蓄！** 💡  
-    **📌 低於 60 分：請儘早檢視退休計畫，可能有資金不足風險！** ⚠️  
-    """)
-
-# ─────────────────────────
-# 五、退休風格測驗與智能建議報告
+# 五、退休風格測驗與建議報告
 # ─────────────────────────
 st.subheader("🎯 退休風格測驗與建議報告")
 st.info("告訴我你理想中的退休生活風格，我會根據你的選擇提供專業又貼心的建議。")
@@ -311,6 +270,13 @@ if len(retire_idx) > 0:
     
     health_score = int((proj_asset / target_asset) * 100) if target_asset > 0 else 0
     st.metric(label="💪 財務健康指數", value=f"{health_score} 分", delta=health_score - 80)
+    
+    st.info("""
+    💡 Nana 提醒你：
+    📌 80 分以上：你的財務規劃相當穩健！ 🎉
+    📌 60-79 分：建議適度調整投資或儲蓄！ 💡
+    📌 低於 60 分：請儘早檢視退休計畫，可能有資金不足風險！ ⚠️
+    """)
     
     if gap > 0:
         st.markdown("**建議：**")
