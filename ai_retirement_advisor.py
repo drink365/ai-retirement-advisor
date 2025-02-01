@@ -144,7 +144,8 @@ with col1:
     expected_lifespan = st.number_input("預期壽命", min_value=retirement_age, max_value=150, value=100)
 with col2:
     monthly_expense = st.number_input("每月生活費用", min_value=1000, value=30000, step=1000)
-    annual_salary = st.number_input("年薪", min_value=0, value=1000000, step=10000)
+    # 將「年薪」改為「目前年薪」
+    annual_salary = st.number_input("目前年薪", min_value=0, value=1000000, step=10000)
     salary_growth = st.number_input("年薪成長率 (%)", min_value=0.0, value=2.0, step=0.1)
 st.markdown("---")
 col3, col4 = st.columns(2)
@@ -152,8 +153,8 @@ with col3:
     investable_assets = st.number_input("初始可投資資產", min_value=0, value=1000000, step=10000)
 with col4:
     investment_return = st.number_input("投資報酬率 (%)", min_value=0.0, value=5.0, step=0.1)
-# 修改此處文字，由「退休月退休金」改為「每月退休金」
-retirement_pension = st.number_input("每月退休金", min_value=0, value=20000, step=1000)
+# 將「每月退休金」改為「預估每月退休金」
+retirement_pension = st.number_input("預估每月退休金", min_value=0, value=20000, step=1000)
 inflation_rate = st.number_input("通膨率 (%)", min_value=0.0, value=2.0, step=0.1)
 
 # ─────────────────────────
@@ -177,8 +178,10 @@ else:
     home_price = st.number_input("房屋總價", min_value=0, value=15000000, step=100000)
     down_payment = st.number_input("首付款", min_value=0, value=4500000, step=100000)
     loan_amount = st.number_input("貸款金額", min_value=0, value=10500000, step=100000)
-    loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=20)
-    loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=2.0, step=0.1)
+    # 貸款年限預設改為 30
+    loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=30)
+    # 貸款利率預設改為 3%
+    loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
 
 # ─────────────────────────
 # 三、一次性支出管理
