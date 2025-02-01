@@ -175,9 +175,7 @@ if housing_choice == "租房":
     loan_rate = 0.0
 else:
     buy_age = st.number_input("購房年齡", min_value=18, max_value=expected_lifespan, value=40)
-    # 使用 on_change 回呼，當用戶調整房屋總價時自動更新「首付款」與「貸款金額」
-    st.number_input("房屋總價", key="home_price", value=15000000, step=100000, on_change=update_payments)
-    # 若已設定則使用 session_state 中的預設值，否則使用 30% 的初始值
+    home_price = st.number_input("房屋總價", key="home_price", value=15000000, step=100000, on_change=update_payments)
     down_payment = st.number_input("首付款", key="down_payment", value=st.session_state.get("down_payment", int(15000000*0.3)), step=100000)
     loan_amount = st.number_input("貸款金額", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000*0.3)), step=100000)
     loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=30)
@@ -241,7 +239,7 @@ with st.spinner("計算中..."):
         lumpsum_list=st.session_state["lumpsum_list"]
     )
     
-    # 將結果欄位依群組重新整理：基本資料、收入、支出、結餘
+    # 依群組重新整理結果欄位：基本資料、收入、支出、結餘
     new_columns = []
     for col in df_result.columns:
         if col == "年齡":
@@ -277,7 +275,6 @@ if len(retire_idx) > 0:
         st.markdown("• 您目前的儲蓄與投資計劃可能不足以達成您的退休目標。")
         st.markdown("• 建議您考慮延後退休、增加每月儲蓄、或調整投資組合以期望獲得更高的投資報酬率。")
         st.markdown("• 如需專業建議，您可以預約免費的財務規劃諮詢，我們的專家會根據您的情況提供專屬策略。")
-        # 透過 HTML 連結按鈕導向 www.gracefo.com
         st.markdown('<a href="https://www.gracefo.com" target="_blank"><button style="padding:10px 20px;background-color:#4CAF50;color:white;border:none;border-radius:5px;">立即預約免費諮詢</button></a>', unsafe_allow_html=True)
     else:
         st.markdown("恭喜您！根據目前數據，您的退休規劃已達標。請持續關注投資與支出動態，保持良好財務習慣。")
