@@ -32,6 +32,8 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
         
         living_expense = int(monthly_expense * 12)
         if rent_or_buy == "租房":
+    rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
+    buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate, annual_salary, salary_growth = 0, 0, 0, 0, 0, 0, 1000000, 2.0
             housing_expense = int(rent_amount * 12)
         else:
             if year == buy_age:
@@ -91,3 +93,4 @@ if data:
     df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退休年金", "總收入","家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"])
     st.subheader("📊 退休現金流預測")
     st.dataframe(df.style.format("{:,}").applymap(lambda x: 'color: red;' if isinstance(x, (int, float)) and x < 0 else '', subset=["年度結餘", "累積結餘"]))
+
