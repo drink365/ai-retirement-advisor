@@ -61,16 +61,40 @@ with st.expander("🏡 住房狀況", expanded=True):
         loan_rate = st.number_input("📈 貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
 
 # ----------------------------
+# 三、財務健康指數與退休風格測驗
+# ----------------------------
+with st.expander("🎯 財務健康指數與退休風格測驗", expanded=True):
+    st.markdown("💬 **Nana：告訴我你的退休夢想，我來幫你評估財務狀況！**")
+
+    retire_style = st.radio("你理想的退休生活風格是？", ["低調簡約", "舒適中產", "高端奢華"], key="retire_style")
+    recommended_target = {"低調簡約": 10000000, "舒適中產": 20000000, "高端奢華": 50000000}[retire_style]
+
+    st.markdown(f"✅ **根據你的選擇，Nana 建議你的退休目標資產為：** 💰 **{recommended_target:,.0f} 元**")
+    target_asset = st.number_input("💡 你希望的退休目標資產（元）", min_value=0, value=recommended_target, step=1000000)
+
+    health_score = int((10000000 / target_asset) * 100) if target_asset > 0 else 0  # 假設值
+    st.metric(label="📈 Nana 給你的財務健康指數", value=f"{health_score} 分", delta=health_score - 80)
+
+    st.info("""
+    **💡 Nana 提醒你：**  
+    **📌 80 分以上：你的財務規劃相當穩健！** 🎉  
+    **📌 60-79 分：建議適度調整投資或儲蓄！** 💡  
+    **📌 低於 60 分：請儘早檢視退休計畫，可能有資金不足風險！** ⚠️  
+    """)
+
+# ----------------------------
 # 四、預估退休現金流與趨勢
 # ----------------------------
 with st.expander("📊 預估退休現金流與趨勢", expanded=True):
     st.markdown("💡 **Nana 幫你模擬退休財務趨勢，看看你的資產變化！**")
 
-    df_chart = pd.DataFrame({
+    df_cashflow = pd.DataFrame({
         "年齡": list(range(40, 100)),  # 假設年齡範圍
         "累積結餘": np.linspace(10000000, 5000000, 60)  # 假設數據
     })
-    line_chart = alt.Chart(df_chart).mark_line(point=True).encode(
+    st.dataframe(df_cashflow.style.format("{:,.0f}"), use_container_width=True)
+
+    line_chart = alt.Chart(df_cashflow).mark_line(point=True).encode(
         x=alt.X("年齡:Q", title="年齡"),
         y=alt.Y("累積結餘:Q", title="累積結餘"),
         tooltip=["年齡", "累積結餘"]
