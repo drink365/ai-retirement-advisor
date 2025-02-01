@@ -16,12 +16,12 @@ def calculate_retirement_cashflow(
 ):
     """
     計算退休現金流：
-      - 收入：薪資（退休前）、投資收益（有資產時）、退休年金（退休後）
+      - 收入：薪資（退休前）、投資收益、退休年金（退休後）
       - 支出：
-         1) 生活費（含通膨）
-         2) 住房費（依租房或買房邏輯計算）
-         3) 一次性支出 lumpsum（不含通膨），僅計算 lumpsum_df 中年齡 ≥ current_age 且金額 > 0 的資料，
-            並在該年發生的支出累加進去
+          1) 生活費（含通膨）
+          2) 住房費（租房或買房邏輯）
+          3) 一次性支出 lumpsum（不含通膨），僅計算 lumpsum_df 中年齡 ≥ current_age 且 金額 > 0 的資料，
+             並在該年發生的支出累加。
     """
     ages = list(range(current_age, expected_lifespan + 1))
     data = []
@@ -38,7 +38,7 @@ def calculate_retirement_cashflow(
         lumpsum_df = pd.DataFrame(columns=["年齡", "金額"])
 
     for i, age in enumerate(ages):
-        # 薪資：退休前有，退休後為 0
+        # 薪資：退休前有薪資，退休後為 0
         salary_income = int(annual_salary) if age <= retirement_age else 0
         if age < retirement_age:
             annual_salary *= (1 + salary_growth / 100)
@@ -54,7 +54,7 @@ def calculate_retirement_cashflow(
         # 生活費（尚未乘通膨）
         living_expense = int(monthly_expense * 12)
 
-        # 住房費用計算：租房或買房邏輯
+        # 住房費用
         if rent_or_buy == "租房":
             housing_expense = int(rent_amount * 12)
         else:
@@ -68,21 +68,21 @@ def calculate_retirement_cashflow(
             else:
                 housing_expense = 0
 
-        # 通膨影響下的基礎支出
+        # 考慮通膨：基礎支出
         base_expense = (living_expense + housing_expense) * ((1 + inflation_rate / 100) ** i)
 
-        # 累加一次性支出：僅累加 lumpsum_df 中年齡 == 當前年齡且數值有效的資料
+        # 一次性支出：累加 lumpsum_df 中年齡等於當前年齡且數值有效的資料
         lumpsum_expense = 0
         for _, row in lumpsum_df.iterrows():
             try:
-                expense_age = int(row["年齡"])
-                expense_amt = float(row["金額"])
+                exp_age = int(row["年齡"])
+                exp_amt = float(row["金額"])
             except (ValueError, TypeError):
                 continue
-            if expense_age < current_age or expense_amt <= 0:
+            if exp_age < current_age or exp_amt <= 0:
                 continue
-            if expense_age == age:
-                lumpsum_expense += expense_amt
+            if exp_age == age:
+                lumpsum_expense += exp_amt
 
         total_expense = int(base_expense) + int(lumpsum_expense)
         annual_balance = total_income - total_expense
@@ -129,7 +129,7 @@ def calculate_retirement_cashflow(
 st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
-# 使用 session_state 管理一次性支出資料（僅包含「年齡」和「金額」）
+# 使用 session_state 管理一次性支出資料，這裡只包含「年齡」和「金額」
 if "lumpsum_list" not in st.session_state:
     st.session_state["lumpsum_list"] = []
 
@@ -174,31 +174,20 @@ else:
         monthly_mortgage_temp = 0
     st.write(f"每月房貸: {monthly_mortgage_temp:,.0f} 元")
 
-# --- 一次性支出：使用 st.data_editor（僅包含「年齡」和「金額」兩欄） ---
+# -----------------------------
+# 一次性支出：使用 st.form 新增 (僅含「年齡」與「金額」)
+# -----------------------------
 st.subheader("📌 一次性支出 (偶發性)")
-st.write(f"請在下表中新增或編輯一次性支出。年齡必須 ≥ {current_age} 且金額 > 0，否則該列將不計算。")
-
-# 這裡直接使用 session_state 中的 lumpsum_list（只包含「年齡」和「金額」）
-lumpsum_df_edited = st.data_editor(
-    st.session_state["lumpsum_list"],
-    column_config={
-        "年齡": st.column_config.NumberColumn(
-            "年齡 (≥目前年齡)",
-            min_value=current_age,
-            step=1
-        ),
-        "金額": st.column_config.NumberColumn(
-            "金額 (>0)",
-            min_value=1,
-            step=1000
-        )
-    },
-    num_rows="dynamic",
-    use_container_width=True
-)
-# 將回傳結果轉換為 DataFrame並移除空白列
-lumpsum_df_edited = pd.DataFrame(lumpsum_df_edited).dropna(subset=["年齡", "金額"])
-st.session_state["lumpsum_list"] = lumpsum_df_edited
+with st.form("add_lumpsum"):
+    new_age = st.number_input("新增一次性支出 - 年齡", min_value=current_age, value=current_age)
+    new_amt = st.number_input("新增一次性支出 - 金額", min_value=1, value=100000)
+    submitted = st.form_submit_button("新增")
+    if submitted:
+        if new_age >= current_age and new_amt > 0:
+            st.session_state["lumpsum_list"].append({"年齡": new_age, "金額": new_amt})
+            st.success(f"新增成功：年齡 {new_age}，金額 {new_amt}")
+        else:
+            st.warning("無效輸入：年齡必須 ≥ 當前年齡且金額 > 0。")
 
 # -----------------------------
 # 計算退休現金流
@@ -227,9 +216,9 @@ st.dataframe(styled_df, use_container_width=True)
 st.markdown("""
 ### 更多貼心提醒
 
-- **定期檢視**：建議每隔 6～12 個月檢視一次財務與保險規劃。
+- **定期檢視**：建議每隔 6~12 個月檢視一次財務與保險規劃。
 - **保險規劃**：根據家庭結構，適時調整壽險與健康險以降低風險。
-- **投資分散**：分散投資可降低單一資產波動對財務的影響。
+- **投資分配**：分散投資可降低單一資產波動對財務的影響。
 - **退休年金**：若累積結餘偏低，請考慮提高投資報酬率或延後退休年齡。
 - **家族傳承**：有需求者可結合信託與保險工具，為後代做好資產配置與節稅安排。
 
