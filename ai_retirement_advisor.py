@@ -225,7 +225,7 @@ if st.button("計算退休現金流"):
         lumpsum_list=st.session_state["lumpsum_list"]
     )
     styled_df = df_result.style.format("{:,.0f}").applymap(color_negative_red)
-    st.subheader("### 預估現金流")
+    st.subheader("## 預估未來現金流")
     st.dataframe(styled_df, use_container_width=True)
 
 # ────────────────
