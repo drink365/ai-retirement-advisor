@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# ============================================================
+# ------------------------------------------------------------
 # 1) Functions
-# ============================================================
+# ------------------------------------------------------------
 def calculate_retirement_cashflow(
     current_age, retirement_age, expected_lifespan, monthly_expense,
     rent_or_buy, rent_amount, buy_age, home_price, down_payment,
@@ -16,7 +16,7 @@ def calculate_retirement_cashflow(
     """
     計算退休現金流，考慮:
       - 收入 (薪資、投資、退休年金)
-      - 支出 (生活費、住房費 + 一次性支出)
+      - 支出 (生活費、住房費)
       - 貸款年限 (buy_age 可小於 current_age, 表示已繳一部分房貸)
       - 投資報酬、通膨影響
       - 預期壽命計算到最後一年
@@ -26,6 +26,7 @@ def calculate_retirement_cashflow(
     1. 使用 st.experimental_data_editor 來輸入多筆一次性支出 (year, amount)。
        lumpsum 在當年發生時直接扣除，不做通膨調整。
     2. 「剩餘資產」欄位改為「累積結餘」，年度結餘 & 累積結餘置於「結餘」分群。
+    3. 每月房貸欄位僅在「買房」時才顯示。
     """
 
     years = list(range(current_age, expected_lifespan + 1))
@@ -80,12 +81,12 @@ def calculate_retirement_cashflow(
         # 通膨影響的經常性支出
         base_expense = (living_expense + housing_expense) * ((1 + inflation_rate / 100) ** i)
 
-        # 一次性支出 lumpsum，不做通膨調整
+        # 一次性支出 lumpsum，不做通膨
         lumpsum_expense = sum(
             row["金額"] for _, row in other_expenses.iterrows() if int(row["年份"]) == year
         )
 
-        # 總支出 = (經常支出 + lumpsum(不通膨))
+        # 總支出 = (經常支出 + lumpsum)
         total_expense = int(base_expense) + int(lumpsum_expense)
 
         annual_balance = total_income - total_expense
@@ -140,10 +141,9 @@ def calculate_retirement_cashflow(
     ])
     return df
 
-
-# ============================================================
+# -----------------------------------------------------------
 # 2) Streamlit App
-# ============================================================
+# -----------------------------------------------------------
 st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
@@ -189,9 +189,10 @@ else:
     else:
         monthly_mortgage_temp = 0
 
-st.subheader("每月房貸")
-st.write(f"{monthly_mortgage_temp:,.0f} 元")
-
+# 僅在「買房」時顯示每月房貸
+if rent_or_buy == "買房":
+    st.subheader("每月房貸")
+    st.write(f"{monthly_mortgage_temp:,.0f} 元")
 
 # -----------------------------------------------------------
 # 其它一次性支出 (多筆, 不考慮通膨)
@@ -207,9 +208,6 @@ initial_df = pd.DataFrame({
 
 # 使用 st.experimental_data_editor 讓使用者自由增減
 edited_df = st.experimental_data_editor(initial_df, num_rows="dynamic")
-# 說明:
-# - num_rows="dynamic" 可讓使用者在 UI 按 + 或 - 新增/刪除行
-# - edited_df 回傳一個 DataFrame，其中年份與金額都可被使用者修改
 
 # -----------------------------------------------------------
 # 計算退休現金流
