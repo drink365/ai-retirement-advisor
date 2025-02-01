@@ -30,7 +30,7 @@ if loan_amount > 0 and loan_term > 0:
         loan_rate_monthly = loan_rate / 100 / 12
         monthly_mortgage = (loan_amount * loan_rate_monthly) / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12))
     
-    for i, year in enumerate(years):
+        for i, year in enumerate(years):
         salary_income = int(annual_salary) if year <= retirement_age else 0
         if year < retirement_age:
             annual_salary *= (1 + salary_growth / 100)
