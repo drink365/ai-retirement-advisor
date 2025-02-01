@@ -45,8 +45,8 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
         remaining_assets *= (1 + investment_return / 100)  # 投資收益
         remaining_assets /= (1 + inflation_rate / 100)  # 套用通膨影響
         
-        data.append([year, salary_income, investment_income, pension_income, total_income,
-                     living_expense, housing_expense, total_expense, annual_balance, remaining_assets])
+        data.append([year, int(salary_income * 10000), int(investment_income * 10000), int(pension_income * 10000), int(total_income * 10000),
+                     int(living_expense * 10000), int(housing_expense * 10000), int(total_expense * 10000), int(annual_balance * 10000), int(remaining_assets * 10000)]
         
     return data
 
@@ -61,27 +61,27 @@ retirement_age = st.number_input("您計劃退休的年齡", min_value=current_a
 expected_lifespan = st.number_input("預期壽命（歲）", min_value=70, max_value=110, value=90)
 
 st.subheader("📌 家庭開銷")
-monthly_expense = st.number_input("每月生活支出（萬）", min_value=1, max_value=50, value=3)
+monthly_expense = st.number_input("每月生活支出（元）", min_value=1, max_value=50, value=3)
 
 st.subheader("📌 住房計畫")
 rent_or_buy = st.radio("您的住房計畫", ["租房", "買房"])
 if rent_or_buy == "租房":
-    rent_amount = st.number_input("每月租金（萬）", min_value=0, max_value=50, value=2)
+    rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=50, value=2)
     buy_age, home_price, down_payment, loan_term, loan_rate = None, None, None, None, None
 else:
     buy_age = st.number_input("計劃買房年齡", min_value=current_age, max_value=80, value=current_age)
-    home_price = st.number_input("預計買房價格（萬）", min_value=0, value=1500)
-    down_payment = st.number_input("頭期款（萬）", min_value=0, value=home_price * 0.3)
+    home_price = st.number_input("預計買房價格（元）", min_value=0, value=1500)
+    down_payment = st.number_input("頭期款（元）", min_value=0, value=int(home_price * 0.3))
     loan_term = st.number_input("貸款年限（年）", min_value=1, max_value=40, value=30)
     loan_rate = st.slider("房貸利率（%）", min_value=0.1, max_value=10.0, value=3.0, step=0.1)
 
 st.subheader("📌 財務狀況")
-annual_salary = st.number_input("目前家庭年薪（萬）", min_value=50, max_value=10000, value=100)
+annual_salary = st.number_input("目前家庭年薪（元）", min_value=50, max_value=10000, value=100)
 salary_growth = st.slider("預計薪資成長率（%）", min_value=0.0, max_value=10.0, value=2.0, step=0.1)
-investable_assets = st.number_input("目前可投資之資金（萬）", min_value=0, max_value=100000, value=100)
+investable_assets = st.number_input("目前可投資之資金（元）", min_value=0, max_value=100000, value=100)
 investment_return = st.slider("預期投報率（%）", min_value=0.1, max_value=10.0, value=5.0, step=0.1)
 inflation_rate = st.slider("通貨膨脹率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
-retirement_pension = st.number_input("退休年金（萬/月）", min_value=0, max_value=50, value=2)
+retirement_pension = st.number_input("退休年金（元/月）", min_value=0, max_value=50, value=2)
 
 # 計算退休現金流
 data = calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan, monthly_expense, rent_or_buy, rent_amount,
