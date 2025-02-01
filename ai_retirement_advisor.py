@@ -86,10 +86,9 @@ def calculate_retirement_cashflow():
                      living_expense, housing_expense, total_expense, annual_balance, remaining_assets])
 
     df = pd.DataFrame(data, columns=[
-        ("基本資料", "年齡"),
-        ("收入", "薪資收入"), ("收入", "投資收益"), ("收入", "退休年金"), ("收入", "總收入"),
-        ("支出", "生活費用"), ("支出", "住房費用"), ("支出", "總支出"),
-        ("結餘", "年度結餘"), ("結餘", "累積結餘")
+        "年齡", "薪資收入", "投資收益", "退休年金", "總收入",
+        "生活費用", "住房費用", "總支出",
+        "年度結餘", "累積結餘"
     ])
     return df
 
@@ -102,10 +101,15 @@ with st.expander("📊 預估退休現金流與趨勢", expanded=True):
     df_cashflow = calculate_retirement_cashflow()
     st.dataframe(df_cashflow.style.format("{:,.0f}"), use_container_width=True)
 
-    line_chart = alt.Chart(df_cashflow).mark_line(point=True).encode(
-        x=alt.X("基本資料:年齡", title="年齡"),
-        y=alt.Y("結餘:累積結餘", title="累積結餘"),
-        tooltip=["基本資料:年齡", "結餘:累積結餘"]
+    # **修正這裡的 Altair 繪圖**
+    df_chart = df_cashflow.copy()
+    df_chart.columns = ["年齡", "薪資收入", "投資收益", "退休年金", "總收入",
+                         "生活費用", "住房費用", "總支出", "年度結餘", "累積結餘"]
+
+    line_chart = alt.Chart(df_chart).mark_line(point=True).encode(
+        x=alt.X("年齡:Q", title="年齡"),
+        y=alt.Y("累積結餘:Q", title="累積結餘"),
+        tooltip=["年齡", "累積結餘"]
     ).properties(
         title="📈 累積結餘隨年齡變化"
     )
