@@ -13,15 +13,20 @@ def calculate_retirement_cashflow(
     investable_assets, investment_return, inflation_rate, retirement_pension
 ):
     """
-    計算退休現金流，考慮收入、支出、住房計畫、
-    投資報酬、通膨影響等因素，並持續計算到預期壽命。
+    計算退休現金流，考慮收入、支出、住房計畫、投資報酬、
+    通膨影響等因素，持續計算到預期壽命。
+
+    更新：
+    1. 在尚未買房前，將住房費用視為租金。
+    2. 買房當年需一次支付頭期款與當年房貸。
+    3. 之後若還在貸款期內，僅支付房貸；貸款期滿後住房費用為 0。
     """
     years = list(range(current_age, expected_lifespan + 1))
     data = []
     remaining_assets = investable_assets
     monthly_mortgage = 0
 
-    # 計算每月房貸金額
+    # 若有貸款，計算每月房貸金額
     if loan_amount > 0 and loan_term > 0:
         loan_rate_monthly = loan_rate / 100 / 12
         monthly_mortgage = loan_amount * loan_rate_monthly / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12))
@@ -40,18 +45,26 @@ def calculate_retirement_cashflow(
         pension_income = int(retirement_pension * 12) if year > retirement_age else 0
         total_income = salary_income + investment_income + pension_income
 
-        # 生活費用
+        # 生活費用（尚未考慮通膨，通膨在後面計算）
         living_expense = int(monthly_expense * 12)
 
         # 住房費用
-        if rent_or_buy == "租房" or year < buy_age:
+        if rent_or_buy == "租房":
+            # 永遠都是租房
             housing_expense = int(rent_amount * 12)
         else:
-            if year == buy_age:
-                housing_expense = int(down_payment + (monthly_mortgage * 12))
-            elif buy_age <= year < buy_age + loan_term:
+            # 買房情境
+            if year < buy_age:
+                # 還沒買房前，使用租金
+                housing_expense = int(rent_amount * 12)
+            elif year == buy_age:
+                # 買房當年，支付頭期 + 當年房貸
+                housing_expense = int(down_payment + monthly_mortgage * 12)
+            elif buy_age < year < buy_age + loan_term:
+                # 貸款期內，只支付房貸
                 housing_expense = int(monthly_mortgage * 12)
             else:
+                # 貸款期滿或超過，無住房費用
                 housing_expense = 0
 
         # 通膨影響後的總支出
@@ -60,9 +73,10 @@ def calculate_retirement_cashflow(
         # 年度結餘 = 總收入 - 總支出
         annual_balance = total_income - total_expense
 
-        # 調整剩餘資產
+        # 調整剩餘資產：先加年度結餘，再用投報率成長，最後扣除通膨
         remaining_assets = (remaining_assets + annual_balance) * (1 + investment_return / 100) / (1 + inflation_rate / 100)
 
+        # 儲存每年結果
         data.append([
             year,
             salary_income,
@@ -80,7 +94,9 @@ def calculate_retirement_cashflow(
     df = pd.DataFrame(
         data,
         columns=[
-            "年份", "薪資收入", "投資收益", "退休年金", "總收入", "生活費用", "住房費用", "總支出", "年度結餘", "剩餘資產"
+            "年份", "薪資收入", "投資收益", "退休年金",
+            "總收入", "生活費用", "住房費用", "總支出",
+            "年度結餘", "剩餘資產"
         ]
     )
     return df
@@ -110,11 +126,14 @@ retirement_pension = st.number_input("退休年金（元/月）", min_value=0, m
 # 住房計畫
 st.subheader("📌 住房計畫")
 rent_or_buy = st.radio("您的住房計畫", ["租房", "買房"])
+
 if rent_or_buy == "租房":
+    # 如果使用者只想租房
     rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
     buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate = [0]*6
 else:
-    rent_amount = 0
+    # 若使用者想買房，也可在買房前輸入每月租金
+    rent_amount = st.number_input("買房前每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
     buy_age = st.number_input("計劃買房年齡", min_value=current_age, max_value=80, value=current_age)
     home_price = st.number_input("預計買房價格（元）", min_value=0, value=15000000, format="%d")
     down_payment = st.number_input("頭期款（元）", min_value=0, value=int(home_price*0.3), format="%d")
@@ -134,22 +153,22 @@ data_df = calculate_retirement_cashflow(
 )
 
 # ----------------
-# 數據格式化 & 負數標紅
+# 數據格式化 & 負數標紅 & 千分號
 # ----------------
-# 樣式函式：若值為負數則套用紅色文字
 
 def style_negative(val):
     color = "red" if val < 0 else "black"
     return f"color: {color}"
 
-# 對 DataFrame 套用樣式：
-# 1. 負數標紅
-# 2. 去小數點
-numeric_cols = ["年份","薪資收入","投資收益","退休年金","總收入","生活費用","住房費用","總支出","年度結餘","剩餘資產"]
+# 千分號格式："{:,.0f}" (無小數)
+numeric_cols = [
+    "年份", "薪資收入", "投資收益", "退休年金", "總收入",
+    "生活費用", "住房費用", "總支出", "年度結餘", "剩餘資產"
+]
 
 styled_df = data_df.style
 styled_df = styled_df.applymap(style_negative, subset=numeric_cols)
-styled_df = styled_df.format("{:.0f}", subset=numeric_cols)
+styled_df = styled_df.format("{:,.0f}", subset=numeric_cols)
 
 # ----------------
 # 顯示結果
