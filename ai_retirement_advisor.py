@@ -1,11 +1,34 @@
 import streamlit as st
-import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 # =============================
 # 1) 計算退休現金流函式
 # =============================
+
+def calc_housing_expense(age, rent_or_buy, rent_amount, rent_before_buy, buy_age,
+                         down_payment, monthly_mortgage, loan_term):
+    """
+    計算住房費用：
+      - 租房：直接以租金計算
+      - 購房：
+          * 購屋前：以租金計算
+          * 購屋當年：需支付首付款及第一年的房貸
+          * 貸款期間：以房貸月繳金額計算
+          * 貸款期滿：不再計算住房費用
+    """
+    if rent_or_buy == "租房":
+        return int(rent_amount * 12)
+    else:
+        diff = age - buy_age
+        if diff < 0:
+            return int(rent_before_buy * 12)
+        elif diff == 0:
+            return int(down_payment + monthly_mortgage * 12)
+        elif 0 < diff < loan_term:
+            return int(monthly_mortgage * 12)
+        else:
+            return 0
+
 def calculate_retirement_cashflow(
     current_age, retirement_age, expected_lifespan, monthly_expense,
     rent_or_buy, rent_amount, rent_before_buy,
@@ -15,77 +38,78 @@ def calculate_retirement_cashflow(
     lumpsum_list
 ):
     """
-    計算退休現金流：
-      - 收入：薪資（退休前）、投資收益、退休年金（退休後）
-      - 支出：
-         1) 生活費（含通膨）
-         2) 住房費（租房或買房邏輯）
-         3) 一次性支出 lumpsum（不含通膨），僅計算 lumpsum_list 中年齡 ≥ current_age 且 金額 > 0 的資料，
-            並在該年發生的支出會被累加。
+    計算退休現金流，並回傳包含各年度詳細資料的 DataFrame。
+    
+    參數:
+      current_age: 當前年齡
+      retirement_age: 退休年齡
+      expected_lifespan: 預期壽命
+      monthly_expense: 每月生活費用
+      rent_or_buy: "租房" 或 "購房"
+      rent_amount: 租金金額
+      rent_before_buy: 購房前租金金額
+      buy_age: 購房年齡
+      home_price: 房屋總價（目前未使用，可作後續擴充）
+      down_payment: 首付款
+      loan_amount: 貸款金額
+      loan_term: 貸款年期
+      loan_rate: 貸款年利率（百分比）
+      annual_salary: 年薪
+      salary_growth: 年薪成長率（百分比）
+      investable_assets: 初始可投資資產
+      investment_return: 投資報酬率（百分比）
+      inflation_rate: 通膨率（百分比）
+      retirement_pension: 每月退休金
+      lumpsum_list: 一次性支出清單，格式為 List[{"年齡": 整數, "金額": 數值}]
     """
     ages = list(range(current_age, expected_lifespan + 1))
     data = []
     remaining_assets = investable_assets
 
-    # 計算每月房貸（若有貸款）
+    # 計算每月房貸（若有貸款） - 等額本息公式
     monthly_mortgage = 0
     if loan_amount > 0 and loan_term > 0:
         lr_monthly = loan_rate / 100 / 12
         monthly_mortgage = loan_amount * lr_monthly / (1 - (1 + lr_monthly) ** (-loan_term * 12))
 
-    # 轉換一次性支出清單為 DataFrame
-    lumpsum_df = pd.DataFrame(lumpsum_list) if lumpsum_list else pd.DataFrame(columns=["年齡", "金額"])
+    # 預先建立一次性支出的映射：年齡 -> 總金額
+    lumpsum_map = {}
+    for entry in lumpsum_list:
+        try:
+            exp_age = int(entry["年齡"])
+            exp_amt = float(entry["金額"])
+        except (ValueError, TypeError):
+            continue
+        if exp_age < current_age or exp_amt <= 0:
+            continue
+        lumpsum_map[exp_age] = lumpsum_map.get(exp_age, 0) + exp_amt
+
+    # 使用局部變數記錄年薪，避免直接修改傳入參數
+    current_salary = annual_salary
 
     for i, age in enumerate(ages):
-        # 薪資（退休前有薪資，退休後為 0）
-        salary_income = int(annual_salary) if age <= retirement_age else 0
+        # 薪資收入（退休前以薪資計算，退休後歸零）
+        salary_income = int(current_salary) if age <= retirement_age else 0
         if age < retirement_age:
-            annual_salary *= (1 + salary_growth / 100)
+            current_salary *= (1 + salary_growth / 100)
 
-        # 投資收益
+        # 投資收益及退休金收入
         investment_income = int(remaining_assets * (investment_return / 100)) if remaining_assets > 0 else 0
-
-        # 退休年金
         pension_income = int(retirement_pension * 12) if age > retirement_age else 0
-
         total_income = salary_income + investment_income + pension_income
 
-        # 生活費（尚未乘通膨）
+        # 生活費用與住房費用（依據通膨調整）
         living_expense = int(monthly_expense * 12)
-
-        # 住房費用計算：租房或買房邏輯
-        if rent_or_buy == "租房":
-            housing_expense = int(rent_amount * 12)
-        else:
-            diff = age - buy_age
-            if diff < 0:
-                housing_expense = int(rent_before_buy * 12)
-            elif diff == 0:
-                housing_expense = int(down_payment + monthly_mortgage * 12)
-            elif 0 < diff < loan_term:
-                housing_expense = int(monthly_mortgage * 12)
-            else:
-                housing_expense = 0
-
-        # 通膨影響下的基礎支出
+        housing_expense = calc_housing_expense(age, rent_or_buy, rent_amount, rent_before_buy,
+                                                 buy_age, down_payment, monthly_mortgage, loan_term)
         base_expense = (living_expense + housing_expense) * ((1 + inflation_rate / 100) ** i)
 
-        # 累加一次性支出：僅計算 lumpsum_df 中滿足條件的行
-        lumpsum_expense = 0
-        for _, row in lumpsum_df.iterrows():
-            try:
-                exp_age = int(row["年齡"])
-                exp_amt = float(row["金額"])
-            except (ValueError, TypeError):
-                continue
-            if exp_age < current_age or exp_amt <= 0:
-                continue
-            if exp_age == age:
-                lumpsum_expense += exp_amt
-
+        # 加入一次性支出
+        lumpsum_expense = lumpsum_map.get(age, 0)
         total_expense = int(base_expense) + int(lumpsum_expense)
         annual_balance = total_income - total_expense
 
+        # 調整剩餘資產：先加上年度結餘，再考慮投資回報與通膨影響
         remaining_assets = ((remaining_assets + annual_balance) * (1 + investment_return / 100)) / (1 + inflation_rate / 100)
 
         data.append([
@@ -94,19 +118,13 @@ def calculate_retirement_cashflow(
             total_expense, annual_balance, remaining_assets
         ])
 
+    # 直接建立 DataFrame 並指定最終欄位名稱
     df = pd.DataFrame(data, columns=[
         "年齡", "薪資收入", "投資收益", "退休年金", "總收入",
         "生活費用", "住房費用", "一次性支出", "總支出",
-        "年度結餘", "剩餘資產"
-    ])
-    df.rename(columns={"剩餘資產": "累積結餘"}, inplace=True)
-
-    df = df[[
-        "年齡",
-        "薪資收入", "投資收益", "退休年金", "總收入",
-        "生活費用", "住房費用", "一次性支出", "總支出",
         "年度結餘", "累積結餘"
-    ]]
+    ])
+
     return df
 
 # ===========================
@@ -117,10 +135,10 @@ st.header("📢 AI 智能退休顧問")
 
 # 使用 session_state 管理一次性支出資料
 if "lumpsum_list" not in st.session_state:
-    st.session_state["lumpsum_list"] = []  # 初始空清單
+    st.session_state["lumpsum_list"] = []
 
 # -----------------------------
-# 一次性支出管理
+# 一次性支出管理（僅允許「新增」和「刪除」）
 # -----------------------------
 st.subheader("📌 一次性支出 (偶發性)")
 
@@ -132,25 +150,27 @@ with st.form("add_lumpsum"):
         if new_age >= 30 and new_amt > 0:
             st.session_state["lumpsum_list"].append({"年齡": new_age, "金額": new_amt})
             st.success(f"新增成功：年齡 {new_age}，金額 {new_amt}")
+            st.experimental_rerun()  # 重新載入頁面，確保更新資料
         else:
             st.warning("無效輸入：年齡須 ≥ 30 且金額 > 0。")
 
-# 只顯示「刪除」按鈕，隱藏清單
-if st.session_state["lumpsum_list"]:
-    for idx, entry in enumerate(st.session_state["lumpsum_list"]):
-        if st.button(f"刪除：年齡 {entry['年齡']}、金額 {entry['金額']}", key=f"del_{idx}"):
-            st.session_state["lumpsum_list"].pop(idx)
-            st.success("刪除成功！")
-            st.experimental_rerun()
+# 只提供「刪除」按鈕，避免出錯
+for idx, entry in enumerate(st.session_state["lumpsum_list"]):
+    if st.button(f"刪除：年齡 {entry['年齡']}、金額 {entry['金額']}", key=f"del_{idx}"):
+        del st.session_state["lumpsum_list"][idx]  # 直接刪除該項
+        st.success("刪除成功！")
+        st.experimental_rerun()  # 重新載入頁面以更新清單
 
 # -----------------------------
 # 計算退休現金流
 # -----------------------------
 df_result = calculate_retirement_cashflow(
-    40, 60, 100, 30000, "租房", 20000, 20000,
-    48, 15000000, 4500000, 10500000, 20, 2.0,
-    1000000, 2.0, 1000000, 5.0, 2.0, 20000,
-    st.session_state["lumpsum_list"]
+    current_age=40, retirement_age=60, expected_lifespan=100, monthly_expense=30000,
+    rent_or_buy="租房", rent_amount=20000, rent_before_buy=20000,
+    buy_age=48, home_price=15000000, down_payment=4500000, loan_amount=10500000, loan_term=20, loan_rate=2.0,
+    annual_salary=1000000, salary_growth=2.0, investable_assets=1000000,
+    investment_return=5.0, inflation_rate=2.0, retirement_pension=20000,
+    lumpsum_list=st.session_state["lumpsum_list"]
 )
 
 st.subheader("### 預估現金流")
