@@ -88,6 +88,6 @@ df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退�
                                  "家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"])
 if not df.empty:
     for col in df.columns[1:]:
-        df[col] = df[col].apply(lambda x: f"{x:,}")
+        df[col] = df[col].apply(lambda x: f"{int(x):,}")
 st.subheader("📊 退休現金流預測")
 st.table(df)
