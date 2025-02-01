@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 import altair as alt
 
+# st.set_page_config 必須是第一個被呼叫的 Streamlit 指令
+st.set_page_config(page_title="AI 退休顧問", layout="wide")
+
 # ----------------------------
 # 主題風格設定
 # ----------------------------
@@ -25,6 +28,9 @@ if theme == "深色":
 # 定義負數金額著色函式
 # ----------------------------
 def color_negative_red(val):
+    """
+    若數值為負，則回傳紅色字的 CSS 樣式。
+    """
     try:
         v = float(val)
     except Exception:
@@ -52,6 +58,15 @@ def update_payments():
 # =============================
 def calc_housing_expense(age, rent_or_buy, monthly_rent, buy_age,
                          down_payment, monthly_mortgage, loan_term):
+    """
+    計算住房費用：
+      - 若選擇租房：以「每月租金」計算（乘以 12）
+      - 若選擇購房：
+          * 若年齡小於購房年齡：仍以每月租金計算（代表購房前租房）
+          * 當年齡等於購房年齡：支付首付款及第一年的房貸
+          * 當年齡落在購房年齡與貸款年期之間：以房貸月繳金額計算
+          * 當超過購房年齡＋貸款年期：不再計算住房費用
+    """
     if rent_or_buy == "租房":
         return int(monthly_rent * 12)
     else:
@@ -72,6 +87,13 @@ def calculate_retirement_cashflow(
     investment_return, inflation_rate, retirement_pension,
     lumpsum_list
 ):
+    """
+    計算退休現金流，並回傳包含各年度詳細資料的 DataFrame。
+    欄位依次為：
+      年齡、薪資收入、投資收益、退休年金、總收入、
+      生活費用、住房費用、一次性支出、總支出、
+      年度結餘、累積結餘
+    """
     ages = list(range(current_age, expected_lifespan + 1))
     data = []
     remaining_assets = investable_assets
@@ -132,8 +154,6 @@ def calculate_retirement_cashflow(
 # ===========================
 # 主程式：使用者介面
 # ===========================
-
-st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
 # ─────────────────────────
@@ -173,10 +193,9 @@ with st.expander("住房狀況", expanded=True):
         loan_rate = 0.0
     else:
         buy_age = st.number_input("購房年齡", min_value=18, max_value=expected_lifespan, value=40)
-        # 房屋總價，當用戶調整此欄位時觸發 update_payments()
         home_price = st.number_input("房屋總價", key="home_price", value=15000000, step=100000, on_change=update_payments)
-        down_payment = st.number_input("首付款", key="down_payment", value=st.session_state.get("down_payment", int(15000000*0.3)), step=100000)
-        loan_amount = st.number_input("貸款金額", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000*0.3)), step=100000)
+        down_payment = st.number_input("首付款", key="down_payment", value=st.session_state.get("down_payment", int(15000000 * 0.3)), step=100000)
+        loan_amount = st.number_input("貸款金額", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000 * 0.3)), step=100000)
         loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=30)
         loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
 
@@ -236,7 +255,7 @@ with st.expander("預估退休現金流", expanded=True):
             lumpsum_list=st.session_state["lumpsum_list"]
         )
         
-        # 依群組重新整理結果欄位
+        # 依群組重新整理結果欄位：基本資料、收入、支出、結餘
         new_columns = []
         for col in df_result.columns:
             if col == "年齡":
@@ -253,7 +272,7 @@ with st.expander("預估退休現金流", expanded=True):
         st.dataframe(styled_df, use_container_width=True)
 
 # ─────────────────────────
-# 五、退休風格測驗、智能建議與財務健康指數
+# 五、退休風格測驗、智能建議報告與財務健康指數
 # ─────────────────────────
 with st.expander("退休風格測驗與智能建議報告", expanded=True):
     st.markdown("### 退休風格測驗")
