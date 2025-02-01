@@ -29,23 +29,23 @@ def calculate_retirement_cashflow(
     data = []
     remaining_assets = investable_assets
 
-    # 每月房貸
+    # 若有貸款 => 每月房貸
     monthly_mortgage = 0
-    if loan_amount>0 and loan_term>0:
-        lr_monthly = loan_rate/100/12
+    if loan_amount > 0 and loan_term > 0:
+        lr_monthly = loan_rate / 100 / 12
         monthly_mortgage = (
-            loan_amount*lr_monthly
-            / (1 - (1+lr_monthly)**(-loan_term*12))
+            loan_amount * lr_monthly
+            / (1 - (1 + lr_monthly)**(-loan_term*12))
         )
 
-    # 將 lumpsum_list -> DataFrame
+    # 將 lumpsum_list => DataFrame
     lumpsum_df = pd.DataFrame(lumpsum_list) if lumpsum_list else pd.DataFrame(columns=["年齡","金額"])
 
     for i, age in enumerate(ages):
         # 薪資
-        salary_income = int(annual_salary) if age<=retirement_age else 0
-        if age<retirement_age:
-            annual_salary *= (1+salary_growth/100)
+        salary_income = int(annual_salary) if age <= retirement_age else 0
+        if age < retirement_age:
+            annual_salary *= (1 + salary_growth / 100)
 
         # 投資收益
         if remaining_assets>0:
@@ -149,7 +149,6 @@ def calculate_retirement_cashflow(
 st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
-# SessionState: lumpsum_list
 if "lumpsum_list" not in st.session_state:
     st.session_state["lumpsum_list"] = []
 
@@ -197,7 +196,7 @@ else:
     if loan_amount>0 and loan_term>0:
         lr_monthly = loan_rate/100/12
         monthly_mortgage_temp = (
-            loan_amount * lr_monthly
+            loan_amount*lr_monthly
             / (1 - (1+lr_monthly)**(-loan_term*12))
         )
     else:
@@ -210,37 +209,33 @@ else:
 # 一次性支出 (偶發性)
 # -----------------------------
 st.subheader("📌 一次性支出 (偶發性)")
-
-# 顯示目前的一次性支出清單
 if len(st.session_state["lumpsum_list"])==0:
     st.write("尚未新增任何一次性支出")
 else:
     lumpsum_df = pd.DataFrame(st.session_state["lumpsum_list"])
     st.dataframe(lumpsum_df, use_container_width=True)
 
-    # 刪除 / 編輯
-    st.write("#### 刪除 / 編輯")
+    st.write("#### 刪除 / 編輯支出 (操作後請手動刷新頁面或做任意變更來更新表格)")
     for i, row_data in enumerate(st.session_state["lumpsum_list"]):
         with st.expander(f"年齡={row_data['年齡']}, 金額={row_data['金額']}"):
             c1, c2 = st.columns(2)
             # 刪除
-            if c1.button(f"刪除", key=f"del_{i}"):
+            if c1.button(f"刪除支出", key=f"del_{i}"):
                 st.session_state["lumpsum_list"].pop(i)
-                st.experimental_rerun()
-
+                st.warning("已刪除，請手動刷新或變更上方欄位以更新結果")
+                # 不用 st.experimental_rerun()
             # 編輯
             edit_age = c2.number_input(f"編輯年齡_{i}", min_value=0, value=row_data["年齡"])
             edit_amt = c2.number_input(f"編輯金額_{i}", min_value=0, value=row_data["金額"])
             if c2.button(f"送出更新_{i}"):
                 if edit_age>=current_age and edit_amt>0:
                     st.session_state["lumpsum_list"][i] = {"年齡":edit_age,"金額":edit_amt}
-                    st.success("已更新該筆一次性支出")
+                    st.success("已更新，請手動刷新或變更上方欄位以更新結果")
                 else:
-                    st.warning("不符合(年齡<current_age或金額<=0) => 最終跳過")
-                st.experimental_rerun()
+                    st.warning("無效(年齡<current_age或金額<=0)，已跳過")
 
-# 新增一筆
-st.write("#### 新增一筆一次性支出")
+
+st.write("#### 新增一次性支出 (操作後請手動刷新頁面或做任意變更來更新表格)")
 with st.form("add_lumpsum"):
     new_age = st.number_input("年齡(新支出)", min_value=0, value=current_age)
     new_amt = st.number_input("金額(新支出)", min_value=0, value=100000)
@@ -248,12 +243,10 @@ with st.form("add_lumpsum"):
     if submitted:
         if new_age>=current_age and new_amt>0:
             st.session_state["lumpsum_list"].append({"年齡":new_age,"金額":new_amt})
-            st.success(f"成功新增一次性支出: 年齡={new_age}, 金額={new_amt}")
+            st.success("成功新增，請手動刷新或變更上方欄位以更新結果")
         else:
-            st.warning("無效輸入(年齡<current_age或金額<=0)")
-        st.experimental_rerun()
+            st.warning("無效(年齡<current_age或金額<=0)，跳過")
 
-st.markdown("---")
 
 # -----------------------------
 # 計算退休現金流
@@ -264,36 +257,4 @@ df_result = calculate_retirement_cashflow(
     buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate,
     annual_salary, salary_growth, investable_assets,
     investment_return, inflation_rate, retirement_pension,
-    st.session_state["lumpsum_list"]
-)
-
-# 負數標紅 & 千分號
-def style_negative(val):
-    color = "red" if (isinstance(val,(int,float)) and val<0) else "black"
-    return f"color: {color}"
-
-styled_df = df_result.style
-all_cols = df_result.columns
-styled_df = styled_df.applymap(style_negative, subset=pd.IndexSlice[:,all_cols])
-styled_df = styled_df.format("{:,.0f}", subset=pd.IndexSlice[:,all_cols])
-
-# 這裡改為"預估現金流"
-st.subheader("### 預估現金流")
-st.dataframe(styled_df, use_container_width=True)
-
-
-# -----------------------------
-# 更多貼心提醒
-# -----------------------------
-st.markdown("""
-### 更多貼心提醒
-
-- **定期檢視**：建議每隔 6~12 個月檢視一次財務與保險規劃，以因應人生變化。
-- **保險規劃**：可考慮根據家庭結構，增加或調整壽險與健康險，避免風險發生時影響退休生活。
-- **投資分配**：建議保持分散投資原則，降低單一資產波動對財務的衝擊。
-- **退休年金**：如果累積結餘偏低，可考慮提高投資報酬率或延後退休年齡，以確保退休後現金流足夠。
-- **家族傳承**：如有家族企業或高資產規劃需求，可結合信託與保險工具，為後代做好資產配置與節稅安排。
-
-想了解更多專業建議，歡迎造訪  
-[永傳家族辦公室](http://www.gracefo.com) 了解更完整的財務與傳承服務！
-""")
+  
