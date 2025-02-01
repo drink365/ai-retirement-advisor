@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 # ============================================================
 def calculate_retirement_cashflow(
     current_age, retirement_age, expected_lifespan, monthly_expense,
-    rent_or_buy, rent_amount, rent_before_buy, buy_age, home_price,
-    down_payment, loan_amount, loan_term, loan_rate,
+    rent_or_buy, rent_amount, rent_before_buy,
+    buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate,
     annual_salary, salary_growth, investable_assets,
     investment_return, inflation_rate, retirement_pension,
     other_expenses
@@ -17,34 +17,33 @@ def calculate_retirement_cashflow(
     """
     計算退休現金流，考慮以下邏輯：
 
-    一、收入部分：
-       - 薪資 (退休前，會成長)
-       - 投資收益 (remaining_assets * 投報率)
+    一、收入
+       - 薪資 (退休前成長)
+       - 投資收益
        - 退休年金 (退休後)
 
-    二、支出部分：
+    二、支出
        1. 生活費
-       2. 住房費用
-          (A) 若「租房」：全程 rent_amount*12
+       2. 住房費
+          (A) 若「租房」：全程 rent_amount * 12
           (B) 若「買房」：
-              - age < buy_age => 住房費用 = rent_before_buy * 12
-              - age == buy_age => 頭期款 + (房貸月付*12)
-              - buy_age < age < buy_age+loan_term => 房貸月付*12
+              - 年齡 < buy_age => rent_before_buy * 12
+              - 年齡 == buy_age => 頭期款 + (房貸月付*12)
+              - buy_age < 年齡 < buy_age+loan_term => 房貸月付*12
               - 貸款期滿 => 0
-       3. 一次性支出 lumpsum (不考慮通膨)，
-          - 僅在當年扣除
-          - 若該筆年齡 < current_age，或金額無效，則跳過。
+       3. 一次性支出 lumpsum，不考慮通膨
+          - 若年齡 < current_age 或金額 <=0 或空白 => 跳過
+          - 年齡 == 當前年齡 => 當年扣除
 
-    三、剩餘資產 => 累積結餘：
-       當年結餘 + 上年累積結餘 => 再乘(1+投報率)/(1+通膨率)
+    三、remaining_assets => 累積結餘
+       年度結餘 + 上年累積結餘，再乘(1+投報率)/(1+通膨)
     """
 
-    # 建立年齡清單
     ages = list(range(current_age, expected_lifespan + 1))
     data = []
     remaining_assets = investable_assets
 
-    # 若有貸款 => 計算每月房貸
+    # 若有貸款，計算每月房貸
     monthly_mortgage = 0
     if loan_amount > 0 and loan_term > 0:
         lr_monthly = loan_rate / 100 / 12
@@ -54,7 +53,7 @@ def calculate_retirement_cashflow(
         )
 
     for i, age in enumerate(ages):
-        # 薪資 (退休後無)
+        # 薪資
         salary_income = int(annual_salary) if age <= retirement_age else 0
         if age < retirement_age:
             annual_salary *= (1 + salary_growth / 100)
@@ -66,7 +65,7 @@ def calculate_retirement_cashflow(
             investment_income = 0
 
         # 退休年金
-        pension_income = int(retirement_pension*12) if age > retirement_age else 0
+        pension_income = int(retirement_pension * 12) if age > retirement_age else 0
 
         # 當年總收入
         total_income = salary_income + investment_income + pension_income
@@ -79,42 +78,39 @@ def calculate_retirement_cashflow(
             # 全程租房
             housing_expense = int(rent_amount * 12)
         else:
-            # 買房邏輯
+            # 買房
             mortgage_year = age - buy_age
             if mortgage_year < 0:
-                # 還沒到買房年齡 => 付買房前租金
+                # 買房前 => rent_before_buy
                 housing_expense = int(rent_before_buy * 12)
             elif mortgage_year == 0:
                 # 買房當年 => 頭期 + 當年房貸
                 housing_expense = int(down_payment + monthly_mortgage * 12)
             elif 0 < mortgage_year < loan_term:
-                # 貸款期內 => 每年房貸
+                # 貸款期 => 每年房貸
                 housing_expense = int(monthly_mortgage * 12)
             else:
-                # 貸款期滿 => 0
+                # 貸款期滿
                 housing_expense = 0
 
         # 通膨影響 => 經常性支出
         base_expense = (living_expense + housing_expense) * ((1 + inflation_rate / 100) ** i)
 
-        # 一次性支出 lumpsum，不考慮通膨
+        # 一次性支出 lumpsum (不考慮通膨)
         lumpsum_expense = 0
-        for _, row in other_expenses.iterrows():
+        for _, row_data in other_expenses.iterrows():
             try:
-                row_age_raw = str(row.get("年齡", "")).strip()
-                row_amt_raw = str(row.get("金額", "")).strip()
-
-                # 若空白則跳過
-                if not row_age_raw or not row_amt_raw:
+                age_raw = str(row_data.get("年齡", "")).strip()
+                amt_raw = str(row_data.get("金額", "")).strip()
+                if not age_raw or not amt_raw:
                     continue
-
-                expense_age = int(row_age_raw)
-                expense_amt = float(row_amt_raw)
+                expense_age = int(age_raw)
+                expense_amt = float(amt_raw)
             except (ValueError, TypeError):
-                # 輸入無效 => 跳過
+                # 若輸入不合法 => 跳過
                 continue
 
-            # 若該筆年齡 < current_age，或金額<=0 => 跳過
+            # 若年齡 < current_age 或金額<=0 => 跳過
             if expense_age < current_age or expense_amt <= 0:
                 continue
 
@@ -127,7 +123,7 @@ def calculate_retirement_cashflow(
         # 年度結餘
         annual_balance = total_income - total_expense
 
-        # 累積結餘 => (去年結餘+今年結餘) * (1+投報率)/(1+通膨)
+        # 更新累積結餘 => (前累積 + 結餘)*投報率 / 通膨
         remaining_assets = (
             (remaining_assets + annual_balance)
             * (1 + investment_return / 100)
@@ -154,7 +150,6 @@ def calculate_retirement_cashflow(
         "生活費用","住房費用","一次性支出","總支出",
         "年度結餘","剩餘資產"
     ])
-    # 改名
     df.rename(columns={"剩餘資產": "累積結餘"}, inplace=True)
 
     # 多層表頭
@@ -185,6 +180,10 @@ def calculate_retirement_cashflow(
 st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
+# 預先定義, 避免 name 未定義
+rent_amount = 0
+rent_before_buy = 0
+
 # ------------------
 # 基本資料
 # ------------------
@@ -212,14 +211,13 @@ st.subheader("📌 住房計畫")
 rent_or_buy = st.radio("您的住房計畫", ["租房", "買房"])
 
 if rent_or_buy == "租房":
-    # 全程都租房
+    # 全程租房
     rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
-    # 買房相關全部為 0
-    rent_before_buy = 0
-    buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate = [0]*6
+    buy_age = 0
+    home_price= down_payment= loan_amount= loan_term= loan_rate= 0
     monthly_mortgage_temp = 0
 else:
-    # 若「買房」，需要「買房前每月租金」，以便在 buy_age 之前計算租金
+    # 若買房 => 顯示買房前租金
     rent_before_buy = st.number_input("買房前每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
 
     buy_age = st.number_input("計劃買房年齡", min_value=0, max_value=80, value=30)
@@ -229,6 +227,7 @@ else:
     loan_term = st.number_input("貸款年限（年）", min_value=1, max_value=30, value=20)
     loan_rate = st.number_input("貸款利率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
 
+    # 即時顯示每月房貸
     if loan_amount > 0 and loan_term > 0:
         lr_monthly = loan_rate / 100 / 12
         monthly_mortgage_temp = (
@@ -241,48 +240,51 @@ else:
     st.subheader("每月房貸")
     st.write(f"{monthly_mortgage_temp:,.0f} 元")
 
-# -----------------------------------------------------------
+# -----------------------------
 # 其它一次性支出
-# -----------------------------------------------------------
+# -----------------------------
 st.subheader("📌 其它一次性支出")
-st.write("如有大額支出，可在下表中填【年齡】與【金額】，該年就會扣除一次性支出 (不計通膨)。")
-st.write(f"**注意**：若年齡<{current_age} 或 金額非數字/<=0，都會自動忽略。")
+st.write("如有大額支出，可在下表填【年齡】&【金額】，該年就會扣除一次性支出 (不計通膨)。")
+st.write(f"**注意**：若年齡<{current_age} 或金額<=0，會跳過；若輸入非數字也跳過。")
 
-init_df = pd.DataFrame({"年齡": [45,60], "金額":[200000,300000]})
+init_df = pd.DataFrame({
+    "年齡":[45,60],
+    "金額":[200000,300000]
+})
 edited_df = st.data_editor(init_df, num_rows="dynamic")
 
-# -----------------------------------------------------------
+# -----------------------------
 # 計算退休現金流
-# -----------------------------------------------------------
+# -----------------------------
 data_df = calculate_retirement_cashflow(
-    current_age, retirement_age, expected_lifespan,
-    monthly_expense, rent_or_buy, rent_amount, rent_before_buy,
-    buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate,
-    annual_salary, salary_growth, investable_assets,
-    investment_return, inflation_rate, retirement_pension,
-    edited_df
+    current_age, retirement_age, expected_lifespan, monthly_expense,
+    rent_or_buy, rent_amount, rent_before_buy,
+    buy_age, home_price, down_payment, loan_amount,
+    loan_term, loan_rate, annual_salary, salary_growth,
+    investable_assets, investment_return, inflation_rate,
+    retirement_pension, edited_df
 )
 
-# -----------------------------------------------------------
-# 數據格式化 & 負數標紅 & 千分號
-# -----------------------------------------------------------
+# -----------------------------
+# 負數標紅 & 千分號
+# -----------------------------
 def style_negative(val):
     color = "red" if (isinstance(val, (int, float)) and val < 0) else "black"
     return f"color: {color}"
 
+all_cols = data_df.columns
 styled_df = data_df.style
-all_columns = data_df.columns
-styled_df = styled_df.applymap(style_negative, subset=pd.IndexSlice[:, all_columns])
-styled_df = styled_df.format("{:,.0f}", subset=pd.IndexSlice[:, all_columns])
+styled_df = styled_df.applymap(style_negative, subset=pd.IndexSlice[:, all_cols])
+styled_df = styled_df.format("{:,.0f}", subset=pd.IndexSlice[:, all_cols])
 
-# -----------------------------------------------------------
+# -----------------------------
 # 顯示結果
-# -----------------------------------------------------------
+# -----------------------------
 st.dataframe(styled_df)
 
-# -----------------------------------------------------------
+# -----------------------------
 # 更多貼心提醒
-# -----------------------------------------------------------
+# -----------------------------
 st.markdown("""
 ### 更多貼心提醒
 
