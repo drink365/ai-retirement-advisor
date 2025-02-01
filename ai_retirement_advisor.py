@@ -141,7 +141,7 @@ current_age = st.number_input("目前年齡", min_value=18, max_value=100, value
 retirement_age = st.number_input("退休年齡", min_value=current_age, max_value=100, value=60)
 expected_lifespan = st.number_input("預期壽命", min_value=retirement_age, max_value=150, value=100)
 monthly_expense = st.number_input("每月生活費用", min_value=1000, value=30000, step=1000)
-annual_salary = st.number_input("年薪", min_value=0, value=1000000, step=10000)
+annual_salary = st.number_input("目前年薪", min_value=0, value=1000000, step=10000)
 salary_growth = st.number_input("年薪成長率 (%)", min_value=0.0, value=2.0, step=0.1)
 investable_assets = st.number_input("初始可投資資產", min_value=0, value=1000000, step=10000)
 investment_return = st.number_input("投資報酬率 (%)", min_value=0.0, value=5.0, step=0.1)
