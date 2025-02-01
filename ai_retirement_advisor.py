@@ -36,20 +36,19 @@ def calc_housing_expense(age, rent_or_buy, monthly_rent, buy_age,
     計算住房費用：
       - 若選擇租房：以「每月租金」計算（乘以 12）
       - 若選擇購房：
-          * 若年齡低於購房年齡：不計算住房費用
-          * 購屋當年：需支付首付款及第一年的房貸
-          * 貸款期間：以房貸月繳金額計算
-          * 貸款期滿：不再計算住房費用
+          * 若年齡小於購房年齡：仍以每月租金計算（代表購房前租房）
+          * 當年齡等於購房年齡：支付首付款及第一年的房貸
+          * 當年齡落在購房年齡與購房年齡＋貸款年期之間：以房貸月繳金額計算
+          * 當超過購房年齡＋貸款年期：不再計算住房費用
     """
     if rent_or_buy == "租房":
         return int(monthly_rent * 12)
     else:
-        diff = age - buy_age
-        if diff < 0:
-            return 0
-        elif diff == 0:
+        if age < buy_age:
+            return int(monthly_rent * 12)
+        elif age == buy_age:
             return int(down_payment + monthly_mortgage * 12)
-        elif 0 < diff < loan_term:
+        elif buy_age < age < buy_age + loan_term:
             return int(monthly_mortgage * 12)
         else:
             return 0
@@ -154,9 +153,11 @@ retirement_pension = st.number_input("退休月退休金", min_value=0, value=20
 # ────────────────
 st.subheader("住房狀況")
 housing_choice = st.selectbox("住房選擇", ["租房", "購房"])
+# 統一輸入每月租金（無論租房或購房，購房前皆以此租金計算）
+monthly_rent = st.number_input("每月租金", min_value=1000, value=20000, step=1000)
+
 if housing_choice == "租房":
-    monthly_rent = st.number_input("每月租金", min_value=1000, value=20000, step=1000)
-    # 租房時，購房相關參數以預設值帶入計算
+    # 若租房，購房相關參數以預設值帶入計算
     buy_age = current_age  
     home_price = 0
     down_payment = 0
@@ -164,13 +165,13 @@ if housing_choice == "租房":
     loan_term = 0
     loan_rate = 0.0
 else:
-    buy_age = st.number_input("購房年齡", min_value=current_age, max_value=expected_lifespan, value=48)
+    # 允許購房年齡小於目前年齡，代表已經購房；用貸款年期判斷還剩幾年房貸
+    buy_age = st.number_input("購房年齡", min_value=18, max_value=expected_lifespan, value=40)
     home_price = st.number_input("房屋總價", min_value=0, value=15000000, step=100000)
     down_payment = st.number_input("首付款", min_value=0, value=4500000, step=100000)
     loan_amount = st.number_input("貸款金額", min_value=0, value=10500000, step=100000)
     loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=20)
     loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=2.0, step=0.1)
-    monthly_rent = 0  # 購房時不使用租金資料
 
 # ────────────────
 # 三、一次性支出管理
