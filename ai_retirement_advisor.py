@@ -54,7 +54,7 @@ st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
 st.subheader("📌 基本資料")
-current_age = st.number_input("您的目前年齡", min_value=30, max_value=80, value=45)
+current_age = st.number_input("您的目前年齡", min_value=30, max_value=80, value=40)
 retirement_age = st.number_input("您計劃退休的年齡", min_value=current_age+1, max_value=90, value=60)
 expected_lifespan = st.number_input("預期壽命（歲）", min_value=70, max_value=110, value=100)
 
@@ -81,3 +81,24 @@ else:
     loan_amount = st.number_input("貸款金額（元）", min_value=0, value=home_price - down_payment, format="%d")
     loan_term = st.number_input("貸款年限（年）", min_value=1, max_value=30, value=20)
     loan_rate = st.number_input("貸款利率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
+
+
+# 計算退休現金流
+data_df = calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan, monthly_expense, rent_or_buy,
+                                       rent_amount, buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate,
+                                       annual_salary, salary_growth, investable_assets, investment_return,
+                                       inflation_rate, retirement_pension)
+
+# 顯示結果
+tab1, tab2 = st.tabs(["📊 資料表", "📈 資產變化圖"])
+with tab1:
+    st.dataframe(data_df)
+
+with tab2:
+    plt.figure(figsize=(10, 5))
+    plt.plot(data_df["年份"], data_df["剩餘資產"], marker='o', linestyle='-')
+    plt.xlabel("年份")
+    plt.ylabel("剩餘資產（元）")
+    plt.title("退休資產變化圖")
+    st.pyplot(plt)
+
