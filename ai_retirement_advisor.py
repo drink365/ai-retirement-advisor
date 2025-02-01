@@ -16,35 +16,35 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
     
     if loan_amount > 0 and loan_term > 0:
         loan_rate_monthly = loan_rate / 100 / 12
-        monthly_mortgage = (loan_amount * loan_rate_monthly) / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12))
+        monthly_mortgage = int((loan_amount * loan_rate_monthly) / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12)))
     
     for i, year in enumerate(years):
-        salary_income = annual_salary if year <= retirement_age else 0
+        salary_income = int(annual_salary) if year <= retirement_age else 0
         if year < retirement_age:
             annual_salary *= (1 + salary_growth / 100)
-        investment_income = remaining_assets * (investment_return / 100) if remaining_assets > 0 else 0
-        pension_income = retirement_pension * 12 if year > retirement_age else 0
+        investment_income = int(remaining_assets * (investment_return / 100)) if remaining_assets > 0 else 0
+        pension_income = int(retirement_pension * 12) if year > retirement_age else 0
         total_income = salary_income + investment_income + pension_income
         
-        living_expense = monthly_expense * 12
+        living_expense = int(monthly_expense * 12)
         if rent_or_buy == "租房" or year < buy_age:
-            housing_expense = rent_amount * 12
+            housing_expense = int(rent_amount * 12)
         else:
             if year == buy_age:
-                housing_expense = down_payment + (monthly_mortgage * 12)
+                housing_expense = int(down_payment + (monthly_mortgage * 12))
             elif buy_age <= year < buy_age + loan_term:
-                housing_expense = monthly_mortgage * 12
+                housing_expense = int(monthly_mortgage * 12)
             else:
                 housing_expense = 0
-        total_expense = (living_expense + housing_expense) * ((1 + inflation_rate / 100) ** i)
         
+        total_expense = int((living_expense + housing_expense) * ((1 + inflation_rate / 100) ** i))
         annual_balance = total_income - total_expense
         remaining_assets += annual_balance
-        remaining_assets *= (1 + investment_return / 100)
-        remaining_assets /= (1 + inflation_rate / 100)
+        remaining_assets = int(remaining_assets * (1 + investment_return / 100))
+        remaining_assets = int(remaining_assets / (1 + inflation_rate / 100))
         
         data.append([year, salary_income, investment_income, pension_income, total_income,
-                     living_expense, housing_expense, total_expense, annual_balance, int(remaining_assets)])
+                     living_expense, housing_expense, total_expense, annual_balance, remaining_assets])
         
     df = pd.DataFrame(data, columns=["年份", "薪資收入", "投資收益", "退休年金", "總收入", "生活費用", "住房費用", "總支出", "年度結餘", "剩餘資產"])
     return df
@@ -72,6 +72,7 @@ rent_or_buy = st.radio("您的住房計畫", ["租房", "買房"])
 if rent_or_buy == "租房":
     rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
     buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate = [0] * 6
+    housing_expense = rent_amount * 12
 else:
     rent_amount = 0
     buy_age = st.number_input("計劃買房年齡", min_value=current_age, max_value=80, value=current_age)
@@ -80,22 +81,3 @@ else:
     loan_amount = st.number_input("貸款金額（元）", min_value=0, value=home_price - down_payment, format="%d")
     loan_term = st.number_input("貸款年限（年）", min_value=1, max_value=30, value=20)
     loan_rate = st.number_input("貸款利率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
-
-# 計算退休現金流
-data_df = calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan, monthly_expense, rent_or_buy,
-                                       rent_amount, buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate,
-                                       annual_salary, salary_growth, investable_assets, investment_return,
-                                       inflation_rate, retirement_pension)
-
-# 顯示結果
-tab1, tab2 = st.tabs(["📊 資料表", "📈 資產變化圖"])
-with tab1:
-    st.dataframe(data_df)
-
-with tab2:
-    plt.figure(figsize=(10, 5))
-    plt.plot(data_df["年份"], data_df["剩餘資產"], marker='o', linestyle='-')
-    plt.xlabel("年份")
-    plt.ylabel("剩餘資產（元）")
-    plt.title("退休資產變化圖")
-    st.pyplot(plt)
