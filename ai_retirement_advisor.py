@@ -2,63 +2,94 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 
-def calculate_retirement_cashflow(current_age, retirement_age, monthly_expense, total_assets, annual_return_rate):
+def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan, monthly_expense, rent_or_buy, rent_amount,
+                                  buy_age, home_price, down_payment, loan_term, loan_rate, annual_salary, salary_growth,
+                                  investable_assets, investment_return, inflation_rate, retirement_pension):
     """
-    計算退休現金流，確保資產能夠支撐到壽命終點，並扣除退休支出。
+    計算退休現金流，考慮收入、支出、住房計畫、投資報酬、通膨影響等因素。
     """
-    years_in_retirement = 100 - retirement_age  # 假設壽命 100 歲
-    annual_expense = monthly_expense * 12
-    remaining_assets = total_assets
-    cashflow_data = []
-
-    for year in range(retirement_age, 100):
-        remaining_assets *= (1 + annual_return_rate / 100)  # 投資增長
-        remaining_assets -= annual_expense  # 減去生活費用
-        cashflow_data.append([year, remaining_assets if remaining_assets > 0 else 0])
-        if remaining_assets <= 0:
-            break
+    years = list(range(current_age, expected_lifespan + 1))
+    data = []
+    remaining_assets = investable_assets
+    loan_balance = home_price - down_payment if rent_or_buy == "買房" else 0
+    monthly_mortgage = 0
+    if loan_balance > 0:
+        loan_rate_monthly = loan_rate / 100 / 12
+        monthly_mortgage = (loan_balance * loan_rate_monthly) / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12))
     
-    return cashflow_data, remaining_assets
+    for year in years:
+        # 收入區
+        salary_income = annual_salary if year < retirement_age else 0
+        if year < retirement_age:
+            annual_salary *= (1 + salary_growth / 100)
+        investment_income = remaining_assets * (investment_return / 100)
+        pension_income = retirement_pension if year >= retirement_age else 0
+        total_income = salary_income + investment_income + pension_income
+        
+        # 支出區
+        living_expense = monthly_expense * 12
+        if rent_or_buy == "租房":
+            housing_expense = rent_amount * 12
+        else:
+            if year == buy_age:
+                housing_expense = down_payment + (monthly_mortgage * 12)
+            elif buy_age <= year < buy_age + loan_term:
+                housing_expense = monthly_mortgage * 12
+            else:
+                housing_expense = 0
+        total_expense = living_expense + housing_expense
+        
+        # 計算當年度結餘
+        annual_balance = total_income - total_expense
+        remaining_assets += annual_balance
+        remaining_assets *= (1 + investment_return / 100)  # 投資收益
+        remaining_assets /= (1 + inflation_rate / 100)  # 套用通膨影響
+        
+        data.append([year, salary_income, investment_income, pension_income, total_income,
+                     living_expense, housing_expense, total_expense, annual_balance, remaining_assets])
+        
+    return data
 
 # Streamlit UI 設計
 st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
 # 用戶輸入財務數據
-st.subheader("請輸入您的財務狀況")
+st.subheader("📌 基本資料")
 current_age = st.number_input("您的目前年齡", min_value=30, max_value=80, value=45)
 retirement_age = st.number_input("您計劃退休的年齡", min_value=current_age+1, max_value=90, value=60)
-monthly_expense = st.number_input("退休後每月希望支出的金額（萬）", min_value=1, max_value=50, value=10)
-total_assets = st.number_input("目前總資產（萬）", min_value=100, max_value=100000, value=5000)
-annual_return_rate = st.slider("預期年均投資報酬率（%）", min_value=1.0, max_value=10.0, value=5.0, step=0.1)
+expected_lifespan = st.number_input("預期壽命（歲）", min_value=70, max_value=110, value=90)
+
+st.subheader("📌 家庭開銷")
+monthly_expense = st.number_input("每月生活支出（萬）", min_value=1, max_value=50, value=3)
+
+st.subheader("📌 住房計畫")
+rent_or_buy = st.radio("您的住房計畫", ["租房", "買房"])
+if rent_or_buy == "租房":
+    rent_amount = st.number_input("每月租金（萬）", min_value=0, max_value=50, value=2)
+    buy_age, home_price, down_payment, loan_term, loan_rate = None, None, None, None, None
+else:
+    buy_age = st.number_input("計劃買房年齡", min_value=current_age, max_value=80, value=current_age)
+    home_price = st.number_input("預計買房價格（萬）", min_value=0, value=1500)
+    down_payment = st.number_input("頭期款（萬）", min_value=0, value=home_price * 0.3)
+    loan_term = st.number_input("貸款年限（年）", min_value=1, max_value=40, value=30)
+    loan_rate = st.slider("房貸利率（%）", min_value=0.1, max_value=10.0, value=3.0, step=0.1)
+
+st.subheader("📌 財務狀況")
+annual_salary = st.number_input("目前家庭年薪（萬）", min_value=50, max_value=10000, value=100)
+salary_growth = st.slider("預計薪資成長率（%）", min_value=0.0, max_value=10.0, value=2.0, step=0.1)
+investable_assets = st.number_input("目前可投資之資金（萬）", min_value=0, max_value=100000, value=100)
+investment_return = st.slider("預期投報率（%）", min_value=0.1, max_value=10.0, value=5.0, step=0.1)
+inflation_rate = st.slider("通貨膨脹率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
+retirement_pension = st.number_input("退休年金（萬/月）", min_value=0, max_value=50, value=2)
 
 # 計算退休現金流
-cashflow_data, final_balance = calculate_retirement_cashflow(current_age, retirement_age, monthly_expense, total_assets, annual_return_rate)
+data = calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan, monthly_expense, rent_or_buy, rent_amount,
+                                     buy_age, home_price, down_payment, loan_term, loan_rate, annual_salary, salary_growth,
+                                     investable_assets, investment_return, inflation_rate, retirement_pension)
 
-# 顯示試算結果
-st.subheader(f"📊 退休現金流試算結果")
-if final_balance > 0:
-    st.success(f"🎉 您的資產足夠支撐到 100 歲，預估最終剩餘資產：{final_balance:,.0f} 萬元")
-else:
-    st.warning(f"⚠️ 您的資金可能在 {cashflow_data[-1][0]} 歲耗盡！請考慮調整退休計劃。")
-
-# 顯示現金流表格
-df = pd.DataFrame(cashflow_data, columns=["年份", "剩餘資產（萬）"])
+# 顯示結果
+df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退休年金", "總收入",
+                                 "家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"])
+st.subheader("📊 退休現金流預測")
 st.table(df)
-
-# AI 建議
-st.subheader("📢 AI 智能建議")
-if final_balance > 0:
-    st.markdown("**🎯 您的財務計劃穩健，可以考慮進一步優化資產配置，提高退休生活品質。**")
-else:
-    st.markdown("**⚠️ 您的退休計劃可能存在資金缺口，建議考慮以下方式：**")
-    st.markdown("1️⃣ **延遲退休** → 增加資產累積時間，減少提款壓力")
-    st.markdown("2️⃣ **調整投資策略** → 提高投資報酬率，但需控制風險")
-    st.markdown("3️⃣ **降低退休支出** → 適當減少開銷，讓資產撐得更久")
-
-# 行動號召
-st.markdown("---")
-st.markdown("## 📢 讓專業顧問幫助您優化退休計劃！")
-st.markdown("🔍 **您的退休財務準備足夠嗎？如果不確定，讓我們幫助您規劃更穩定的退休生活！**")
-st.markdown("📩 **立即預約免費退休財務諮詢！**")
-st.markdown("🌐 [www.gracefo.com](https://www.gracefo.com)")
