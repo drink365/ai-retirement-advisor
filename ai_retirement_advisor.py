@@ -93,26 +93,37 @@ def calculate_retirement_cashflow():
     return df
 
 # ----------------------------
-# 四、顯示預估退休現金流
+# 四、財務健康指數評估
+# ----------------------------
+with st.expander("📊 財務健康指數", expanded=True):
+    st.markdown("💡 **Nana 幫你評估你的財務健康指數！**")
+
+    target_asset = st.number_input("🎯 你的理想退休資產（元）", min_value=0, value=10000000, step=1000000)
+    projected_asset = calculate_retirement_cashflow().iloc[-1]["累積結餘"]
+
+    health_score = int((projected_asset / target_asset) * 100) if target_asset > 0 else 0
+    st.metric(label="📈 Nana 給你的財務健康指數", value=f"{health_score} 分", delta=health_score - 80)
+
+    st.info("""
+    **💡 Nana 提醒你：**  
+    **📌 80 分以上：你的財務規劃相當穩健！** 🎉  
+    **📌 60-79 分：建議適度調整投資或儲蓄！** 💡  
+    **📌 低於 60 分：請儘早檢視退休計畫，可能有資金不足風險！** ⚠️  
+    """)
+
+# ----------------------------
+# 五、顯示預估退休現金流
 # ----------------------------
 with st.expander("📊 預估退休現金流與趨勢", expanded=True):
-    st.markdown("💡 **Nana 幫你模擬退休財務趨勢，看看你的資產變化！**")
-
     df_cashflow = calculate_retirement_cashflow()
     st.dataframe(df_cashflow.style.format("{:,.0f}"), use_container_width=True)
 
-    # **修正這裡的 Altair 繪圖**
-    df_chart = df_cashflow.copy()
-    df_chart.columns = ["年齡", "薪資收入", "投資收益", "退休年金", "總收入",
-                         "生活費用", "住房費用", "總支出", "年度結餘", "累積結餘"]
-
-    line_chart = alt.Chart(df_chart).mark_line(point=True).encode(
+    line_chart = alt.Chart(df_cashflow).mark_line(point=True).encode(
         x=alt.X("年齡:Q", title="年齡"),
         y=alt.Y("累積結餘:Q", title="累積結餘"),
         tooltip=["年齡", "累積結餘"]
-    ).properties(
-        title="📈 累積結餘隨年齡變化"
-    )
+    ).properties(title="📈 累積結餘隨年齡變化")
+    
     st.altair_chart(line_chart, use_container_width=True)
 
 # ----------------------------
