@@ -25,6 +25,15 @@ def safe_rerun():
     except Exception:
         pass
 
+# ----------------------------
+# 當用戶調整「房屋總價」時自動更新「首付款」與「貸款金額」
+# ----------------------------
+def update_payments():
+    # 將首付款預設為房屋總價的 30%
+    st.session_state.down_payment = int(st.session_state.home_price * 0.3)
+    # 貸款金額為房屋總價減去首付款
+    st.session_state.loan_amount = st.session_state.home_price - st.session_state.down_payment
+
 # =============================
 # 1) 計算退休現金流函式
 # =============================
@@ -61,7 +70,7 @@ def calculate_retirement_cashflow(
 ):
     """
     計算退休現金流，並回傳包含各年度詳細資料的 DataFrame。
-    欄位順序依次為：
+    欄位依次為：
       年齡、薪資收入、投資收益、退休年金、總收入、
       生活費用、住房費用、一次性支出、總支出、
       年度結餘、累積結餘
@@ -91,7 +100,6 @@ def calculate_retirement_cashflow(
     current_salary = annual_salary
 
     for i, age in enumerate(ages):
-        # 薪資收入：退休前以薪資計算，退休後歸零
         salary_income = int(current_salary) if age <= retirement_age else 0
         if age < retirement_age:
             current_salary *= (1 + salary_growth / 100)
@@ -167,9 +175,11 @@ if housing_choice == "租房":
     loan_rate = 0.0
 else:
     buy_age = st.number_input("購房年齡", min_value=18, max_value=expected_lifespan, value=40)
-    home_price = st.number_input("房屋總價", min_value=0, value=15000000, step=100000)
-    down_payment = st.number_input("首付款", min_value=0, value=4500000, step=100000)
-    loan_amount = st.number_input("貸款金額", min_value=0, value=10500000, step=100000)
+    # 使用 on_change 回呼，當用戶調整房屋總價時自動更新「首付款」與「貸款金額」
+    st.number_input("房屋總價", key="home_price", value=15000000, step=100000, on_change=update_payments)
+    # 若已設定則使用 session_state 中的預設值，否則使用 30% 的初始值
+    down_payment = st.number_input("首付款", key="down_payment", value=st.session_state.get("down_payment", int(15000000*0.3)), step=100000)
+    loan_amount = st.number_input("貸款金額", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000*0.3)), step=100000)
     loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=30)
     loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
 
@@ -217,7 +227,7 @@ with st.spinner("計算中..."):
         rent_or_buy=housing_choice,
         monthly_rent=monthly_rent,
         buy_age=buy_age,
-        home_price=home_price,
+        home_price=home_price if housing_choice=="購房" else 0,
         down_payment=down_payment,
         loan_amount=loan_amount,
         loan_term=loan_term,
@@ -253,11 +263,8 @@ with st.spinner("計算中..."):
 st.subheader("智能建議報告與行動提示")
 target_asset = st.number_input("請輸入您的退休目標資產（元）", min_value=0, value=20000000, step=1000000)
 
-# 從多層索引中提取基本資料與結餘群組
 df_basic = df_result["基本資料"]
 df_balance = df_result["結餘"]
-
-# 找出退休年齡那一行的數據
 retire_idx = df_basic[df_basic["年齡"] == retirement_age].index
 if len(retire_idx) > 0:
     proj_asset = df_balance.loc[retire_idx[0], "累積結餘"]
@@ -270,9 +277,8 @@ if len(retire_idx) > 0:
         st.markdown("• 您目前的儲蓄與投資計劃可能不足以達成您的退休目標。")
         st.markdown("• 建議您考慮延後退休、增加每月儲蓄、或調整投資組合以期望獲得更高的投資報酬率。")
         st.markdown("• 如需專業建議，您可以預約免費的財務規劃諮詢，我們的專家會根據您的情況提供專屬策略。")
-        if st.button("立即預約免費諮詢"):
-            # 這裡可連結到預約頁面或其他服務
-            st.success("感謝您的預約申請，我們將盡快與您聯繫！")
+        # 透過 HTML 連結按鈕導向 www.gracefo.com
+        st.markdown('<a href="https://www.gracefo.com" target="_blank"><button style="padding:10px 20px;background-color:#4CAF50;color:white;border:none;border-radius:5px;">立即預約免費諮詢</button></a>', unsafe_allow_html=True)
     else:
         st.markdown("恭喜您！根據目前數據，您的退休規劃已達標。請持續關注投資與支出動態，保持良好財務習慣。")
 else:
@@ -281,4 +287,4 @@ else:
 # ─────────────────────────
 # 六、行銷資訊
 # ─────────────────────────
-st.markdown("如需專業協助，歡迎造訪 [永傳家族辦公室](http://www.gracefo.com)")
+st.markdown("如需專業協助，歡迎造訪 [永傳家族辦公室](https://www.gracefo.com)")
