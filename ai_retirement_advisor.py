@@ -17,7 +17,7 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
         loan_rate_monthly = loan_rate / 100 / 12
         monthly_mortgage = (loan_balance * loan_rate_monthly) / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12))
     
-    for year in years:
+    for i, year in enumerate(years):
         salary_income = int(annual_salary) if year <= retirement_age else 0
         if year < retirement_age:
             annual_salary *= (1 + salary_growth / 100)
@@ -35,7 +35,7 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
                 housing_expense = int(monthly_mortgage * 12)
             else:
                 housing_expense = 0
-        total_expense = int((living_expense + housing_expense) * ((1 + inflation_rate / 100) ** (year - current_age)))
+        total_expense = int((living_expense + housing_expense) * ((1 + inflation_rate / 100) ** (i)))
         
         annual_balance = total_income - total_expense
         remaining_assets += annual_balance
@@ -88,6 +88,6 @@ df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退�
                                  "家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"])
 df = df.style.applymap(lambda x: 'color: red;' if isinstance(x, (int, float)) and x < 0 else '', subset=["年度結餘", "累積結餘"])
 for col in df.columns[1:]:
-    df[col] = df[col].apply(lambda x: f"{int(float(x)):,}" if isinstance(x, (int, float)) else x)
+    df[col] = df[col].apply(lambda x: f"{int(float(x)):,}" if isinstance(x, (int, float)) and not pd.isnull(x) else x)
 st.subheader("📊 退休現金流預測")
 st.markdown(df.to_html(escape=False), unsafe_allow_html=True)
