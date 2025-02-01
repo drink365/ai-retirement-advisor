@@ -29,9 +29,7 @@ def safe_rerun():
 # 當用戶調整「房屋總價」時自動更新「首付款」與「貸款金額」
 # ----------------------------
 def update_payments():
-    # 將首付款預設為房屋總價的 30%
     st.session_state.down_payment = int(st.session_state.home_price * 0.3)
-    # 貸款金額為房屋總價減去首付款
     st.session_state.loan_amount = st.session_state.home_price - st.session_state.down_payment
 
 # =============================
@@ -139,7 +137,7 @@ st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
 # ─────────────────────────
-# 一、基本資料輸入區（使用 st.columns 進行分欄排版）
+# 一、基本資料輸入區
 # ─────────────────────────
 st.subheader("基本資料")
 col1, col2 = st.columns(2)
@@ -175,9 +173,10 @@ if housing_choice == "租房":
     loan_rate = 0.0
 else:
     buy_age = st.number_input("購房年齡", min_value=18, max_value=expected_lifespan, value=40)
+    # 房屋總價，當用戶調整此欄位時觸發 update_payments()
     home_price = st.number_input("房屋總價", key="home_price", value=15000000, step=100000, on_change=update_payments)
-    down_payment = st.number_input("首付款", key="down_payment", value=st.session_state.get("down_payment", int(15000000*0.3)), step=100000)
-    loan_amount = st.number_input("貸款金額", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000*0.3)), step=100000)
+    down_payment = st.number_input("首付款", key="down_payment", value=st.session_state.get("down_payment", int(15000000 * 0.3)), step=100000)
+    loan_amount = st.number_input("貸款金額", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000 * 0.3)), step=100000)
     loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=30)
     loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
 
@@ -225,7 +224,7 @@ with st.spinner("計算中..."):
         rent_or_buy=housing_choice,
         monthly_rent=monthly_rent,
         buy_age=buy_age,
-        home_price=home_price if housing_choice=="購房" else 0,
+        home_price=home_price if housing_choice == "購房" else 0,
         down_payment=down_payment,
         loan_amount=loan_amount,
         loan_term=loan_term,
@@ -256,7 +255,71 @@ with st.spinner("計算中..."):
     st.dataframe(styled_df, use_container_width=True)
 
 # ─────────────────────────
-# 五、智能建議報告與行動提示
+# 五、圖表呈現：累積結餘趨勢
+# ─────────────────────────
+st.subheader("圖表呈現：累積結餘趨勢")
+df_chart = pd.DataFrame({
+    "年齡": df_result["基本資料"]["年齡"],
+    "累積結餘": df_result["結餘"]["累積結餘"]
+})
+line_chart = alt.Chart(df_chart).mark_line(point=True).encode(
+    x=alt.X("年齡:Q", title="年齡"),
+    y=alt.Y("累積結餘:Q", title="累積結餘"),
+    tooltip=["年齡", "累積結餘"]
+).properties(
+    title="累積結餘隨年齡變化"
+)
+st.altair_chart(line_chart, use_container_width=True)
+
+# ─────────────────────────
+# 六、敏感性分析：通膨率對累積結餘的影響
+# ─────────────────────────
+st.subheader("敏感性分析：通膨率對累積結餘的影響")
+inf_min = st.number_input("最低通膨率 (%)", value=inflation_rate - 1, step=0.1, key="inf_min")
+inf_max = st.number_input("最高通膨率 (%)", value=inflation_rate + 1, step=0.1, key="inf_max")
+inflation_scenarios = np.linspace(inf_min, inf_max, 5)
+inf_sensitivity_list = []
+for ir in inflation_scenarios:
+    df_inf = calculate_retirement_cashflow(
+        current_age=current_age,
+        retirement_age=retirement_age,
+        expected_lifespan=expected_lifespan,
+        monthly_expense=monthly_expense,
+        rent_or_buy=housing_choice,
+        monthly_rent=monthly_rent,
+        buy_age=buy_age,
+        home_price=home_price if housing_choice == "購房" else 0,
+        down_payment=down_payment,
+        loan_amount=loan_amount,
+        loan_term=loan_term,
+        loan_rate=loan_rate,
+        annual_salary=annual_salary,
+        salary_growth=salary_growth,
+        investable_assets=investable_assets,
+        investment_return=investment_return,
+        inflation_rate=ir,
+        retirement_pension=retirement_pension,
+        lumpsum_list=st.session_state["lumpsum_list"]
+    )
+    df_temp = pd.DataFrame({
+        "年齡": df_inf["年齡"],
+        "累積結餘": df_inf["累積結餘"]
+    })
+    df_temp["通膨率 (%)"] = np.round(ir, 1)
+    inf_sensitivity_list.append(df_temp)
+inf_sensitivity_df = pd.concat(inf_sensitivity_list, ignore_index=True)
+inf_chart = alt.Chart(inf_sensitivity_df).mark_line().encode(
+    x=alt.X("年齡:Q", title="年齡"),
+    y=alt.Y("累積結餘:Q", title="累積結餘"),
+    color=alt.Color("通膨率 (%)", title="通膨率 (%)"),
+    tooltip=["年齡", "累積結餘", "通膨率 (%)"]
+).properties(
+    title="不同通膨率情境下累積結餘比較"
+)
+st.altair_chart(inf_chart, use_container_width=True)
+
+# ─────────────────────────
+# 七、智能建議報告與行動提示
 # ─────────────────────────
 st.subheader("智能建議報告與行動提示")
 target_asset = st.number_input("請輸入您的退休目標資產（元）", min_value=0, value=20000000, step=1000000)
@@ -282,6 +345,6 @@ else:
     st.markdown("無法取得您在退休年齡的累積資產數據，請檢查您的輸入資料。")
 
 # ─────────────────────────
-# 六、行銷資訊
+# 八、行銷資訊
 # ─────────────────────────
 st.markdown("如需專業協助，歡迎造訪 [永傳家族辦公室](https://www.gracefo.com)")
