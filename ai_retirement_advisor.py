@@ -89,4 +89,4 @@ df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退�
 for col in df.columns[1:]:
     df[col] = df[col].apply(lambda x: f"{int(x):,}")
 st.subheader("📊 退休現金流預測")
-st.markdown(df.to_html(escape=False), unsafe_allow_html=True)
+st.markdown(df.style.applymap(lambda x: 'color: red;' if isinstance(x, (int, float)) and x < 0 else '', subset=["年度結餘", "累積結餘"]).to_html(escape=False), unsafe_allow_html=True)
