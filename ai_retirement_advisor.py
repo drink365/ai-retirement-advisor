@@ -21,6 +21,9 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
     if loan_amount > 0 and loan_term > 0:
         loan_rate_monthly = loan_rate / 100 / 12
         monthly_mortgage = (loan_amount * loan_rate_monthly) / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12))
+        st.write(f"每月房貸（元）: {int(monthly_mortgage):,}")
+        loan_rate_monthly = loan_rate / 100 / 12
+        monthly_mortgage = (loan_amount * loan_rate_monthly) / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12))
     
     for i, year in enumerate(years):
         salary_income = int(annual_salary) if year <= retirement_age else 0
@@ -84,3 +87,12 @@ else:
         loan_rate_monthly = loan_rate / 100 / 12
         monthly_mortgage = (loan_amount * loan_rate_monthly) / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12))
         st.write(f"每月房貸（元）: {int(monthly_mortgage):,}")
+
+data = calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan, monthly_expense, rent_or_buy, rent_amount,
+                                     buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate, annual_salary, salary_growth,
+                                     investable_assets, investment_return, inflation_rate, retirement_pension)
+
+if data:
+    df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退休年金", "總收入","家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"])
+    st.subheader("📊 退休現金流預測")
+    st.write(df)
