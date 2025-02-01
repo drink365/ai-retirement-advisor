@@ -82,6 +82,15 @@ else:
     loan_term = st.number_input("貸款年限（年）", min_value=1, max_value=30, value=20)
     loan_rate = st.number_input("貸款利率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
 
+    # 計算每月房貸金額
+    if loan_amount > 0 and loan_term > 0:
+        loan_rate_monthly = loan_rate / 100 / 12
+        monthly_mortgage = int((loan_amount * loan_rate_monthly) / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12)))
+    else:
+        monthly_mortgage = 0
+    
+    st.write(f"每月房貸金額：{monthly_mortgage} 元")
+
 
 # 計算退休現金流
 data_df = calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan, monthly_expense, rent_or_buy,
