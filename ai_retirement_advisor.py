@@ -52,14 +52,6 @@ with st.expander("🏡 住房狀況", expanded=True):
     housing_choice = st.selectbox("🏠 你計畫未來的居住方式？", ["租房", "購房"], index=0)
     monthly_rent = st.number_input("🏠 每月租金", min_value=1000, value=25000, step=1000)
 
-    if housing_choice == "購房":
-        buy_age = st.number_input("📅 購房年齡", min_value=18, max_value=100, value=40)
-        home_price = st.number_input("🏡 房屋總價", key="home_price", value=15000000, step=100000)
-        down_payment = st.number_input("🔹 首付款 (30%)", key="down_payment", value=int(15000000 * 0.3), step=100000)
-        loan_amount = st.number_input("💳 貸款金額", key="loan_amount", value=15000000 - int(15000000 * 0.3), step=100000)
-        loan_term = st.number_input("📆 貸款年期 (年)", min_value=1, max_value=50, value=30)
-        loan_rate = st.number_input("📈 貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
-
 # ----------------------------
 # 三、計算退休現金流
 # ----------------------------
@@ -93,26 +85,7 @@ def calculate_retirement_cashflow():
     return df
 
 # ----------------------------
-# 四、財務健康指數評估
-# ----------------------------
-with st.expander("📊 財務健康指數", expanded=True):
-    st.markdown("💡 **Nana 幫你評估你的財務健康指數！**")
-
-    target_asset = st.number_input("🎯 你的理想退休資產（元）", min_value=0, value=10000000, step=1000000)
-    projected_asset = calculate_retirement_cashflow().iloc[-1]["累積結餘"]
-
-    health_score = int((projected_asset / target_asset) * 100) if target_asset > 0 else 0
-    st.metric(label="📈 Nana 給你的財務健康指數", value=f"{health_score} 分", delta=health_score - 80)
-
-    st.info("""
-    **💡 Nana 提醒你：**  
-    **📌 80 分以上：你的財務規劃相當穩健！** 🎉  
-    **📌 60-79 分：建議適度調整投資或儲蓄！** 💡  
-    **📌 低於 60 分：請儘早檢視退休計畫，可能有資金不足風險！** ⚠️  
-    """)
-
-# ----------------------------
-# 五、顯示預估退休現金流
+# 四、顯示預估退休現金流與趨勢
 # ----------------------------
 with st.expander("📊 預估退休現金流與趨勢", expanded=True):
     df_cashflow = calculate_retirement_cashflow()
@@ -127,7 +100,17 @@ with st.expander("📊 預估退休現金流與趨勢", expanded=True):
     st.altair_chart(line_chart, use_container_width=True)
 
 # ----------------------------
-# 行銷資訊
+# 五、財務健康指數評估
+# ----------------------------
+with st.expander("📊 財務健康指數", expanded=True):
+    target_asset = st.number_input("🎯 你的理想退休資產（元）", min_value=0, value=10000000, step=1000000)
+    projected_asset = calculate_retirement_cashflow().iloc[-1]["累積結餘"]
+
+    health_score = int((projected_asset / target_asset) * 100) if target_asset > 0 else 0
+    st.metric(label="📈 Nana 給你的財務健康指數", value=f"{health_score} 分", delta=health_score - 80)
+
+# ----------------------------
+# 六、行銷資訊
 # ----------------------------
 st.markdown("---")
 st.markdown("🌟 **Nana 由 [永傳家族辦公室](https://www.gracefo.com) 提供**")
