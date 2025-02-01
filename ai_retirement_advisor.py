@@ -16,7 +16,7 @@ def calculate_retirement_cashflow(
     計算退休現金流，考慮:
       - 收入 (薪資、投資、退休年金)
       - 支出 (生活費、住房費)
-      - 住房計畫 (可買房前就繳房貸, 或未來買房)
+      - 住房計畫 (買房前就繳房貸, 或未來買房)
       - 貸款年限 (若 buy_age < current_age, 表示已繳房貸一些年)
       - 投資報酬、通膨影響
       - 預期壽命計算到最後一年
@@ -25,7 +25,7 @@ def calculate_retirement_cashflow(
     1. 房貸計算引入 (year - buy_age) 的邏輯，允許 buy_age < current_age。
        - 若 buy_age = 35, current_age = 40，表示已繳 5 年房貸，僅剩 25 年。
     2. "剩餘資產" 欄位改為 "累積結餘"；"年度結餘" 與 "累積結餘" 改為 "結餘" 分群。
-    3. 移除下載按鈕，但保留多層表頭與負數標紅。
+    3. 隱藏「買房前每月租金」，預設為 0。
     """
 
     # 年度列表 (從目前年齡一路到預期壽命)
@@ -69,13 +69,14 @@ def calculate_retirement_cashflow(
         # 住房費用計算
         # -----------------------------
         if rent_or_buy == "租房":
+            # 一直租房
             housing_expense = int(rent_amount * 12)
         else:
             # buy_age 可小於 current_age
             mortgage_year = year - buy_age
             if mortgage_year < 0:
-                # 還沒買房，租金
-                housing_expense = int(rent_amount * 12)
+                # 還沒到買房時間 (假設這段期間不用租金, 也可自行改為 rent_amount)
+                housing_expense = 0
             elif mortgage_year == 0:
                 # 買房當年：頭期 + 年度房貸
                 housing_expense = int(down_payment + monthly_mortgage * 12)
@@ -178,14 +179,16 @@ st.subheader("📌 住房計畫")
 rent_or_buy = st.radio("您的住房計畫", ["租房", "買房"])
 
 if rent_or_buy == "租房":
+    # 一直租房
     rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
-    # 預設值, 表示不買房
     buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate = [0]*6
     monthly_mortgage_temp = 0
 else:
-    # 調整 min_value 讓使用者可設定 < current_age
-    rent_amount = st.number_input("買房前每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
-    buy_age = st.number_input("計劃買房年齡", min_value=0, max_value=80, value=30)  # <-- 可小於 current_age
+    # 不顯示「買房前每月租金」，直接 rent_amount = 0
+    rent_amount = 0
+
+    # 允許設定買房年齡可小於當前年齡
+    buy_age = st.number_input("計劃買房年齡", min_value=0, max_value=80, value=30)
     home_price = st.number_input("預計買房價格（元）", min_value=0, value=15000000, format="%d")
     down_payment = st.number_input("頭期款（元）", min_value=0, value=int(home_price*0.3), format="%d")
     loan_amount = st.number_input("貸款金額（元）", min_value=0, value=home_price-down_payment, format="%d")
