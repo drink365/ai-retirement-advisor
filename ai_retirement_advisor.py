@@ -7,6 +7,9 @@ import altair as alt
 # 定義負數金額著色函式
 # ----------------------------
 def color_negative_red(val):
+    """
+    若數值為負，則回傳紅色字的 CSS 樣式。
+    """
     try:
         v = float(val)
     except Exception:
@@ -27,6 +30,15 @@ def safe_rerun():
 # =============================
 def calc_housing_expense(age, rent_or_buy, monthly_rent, buy_age,
                          down_payment, monthly_mortgage, loan_term):
+    """
+    計算住房費用：
+      - 若選擇租房：以「每月租金」計算（乘以 12）
+      - 若選擇購房：
+          * 若年齡小於購房年齡：仍以每月租金計算（代表購房前租房）
+          * 當年齡等於購房年齡：支付首付款及第一年的房貸
+          * 當年齡落在購房年齡與貸款年期之間：以房貸月繳金額計算
+          * 當超過購房年齡＋貸款年期：不再計算住房費用
+    """
     if rent_or_buy == "租房":
         return int(monthly_rent * 12)
     else:
@@ -47,6 +59,13 @@ def calculate_retirement_cashflow(
     investment_return, inflation_rate, retirement_pension,
     lumpsum_list
 ):
+    """
+    計算退休現金流，並回傳包含各年度詳細資料的 DataFrame。
+    欄位順序依次為：
+      年齡、薪資收入、投資收益、退休年金、總收入、
+      生活費用、住房費用、一次性支出、總支出、
+      年度結餘、累積結餘
+    """
     ages = list(range(current_age, expected_lifespan + 1))
     data = []
     remaining_assets = investable_assets
@@ -72,6 +91,7 @@ def calculate_retirement_cashflow(
     current_salary = annual_salary
 
     for i, age in enumerate(ages):
+        # 薪資收入：退休前以薪資計算，退休後歸零
         salary_income = int(current_salary) if age <= retirement_age else 0
         if age < retirement_age:
             current_salary *= (1 + salary_growth / 100)
@@ -111,7 +131,7 @@ st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
 # ─────────────────────────
-# 一、基本資料輸入區
+# 一、基本資料輸入區（使用 st.columns 進行分欄排版）
 # ─────────────────────────
 st.subheader("基本資料")
 col1, col2 = st.columns(2)
@@ -228,91 +248,37 @@ with st.spinner("計算中..."):
     st.dataframe(styled_df, use_container_width=True)
 
 # ─────────────────────────
-# 五、【目標設定與里程碑】
+# 五、智能建議報告與行動提示
 # ─────────────────────────
-st.subheader("目標設定與里程碑")
-target_asset = st.number_input("請輸入您的退休目標資產", min_value=0, value=20000000, step=1000000)
-# 取出退休年齡那一行的累積結餘
+st.subheader("智能建議報告與行動提示")
+target_asset = st.number_input("請輸入您的退休目標資產（元）", min_value=0, value=20000000, step=1000000)
+
+# 從多層索引中提取基本資料與結餘群組
 df_basic = df_result["基本資料"]
 df_balance = df_result["結餘"]
-retire_row = df_basic[df_basic["年齡"] == retirement_age]
-if not retire_row.empty:
-    proj_asset = df_balance.loc[retire_row.index, "累積結餘"].values[0]
+
+# 找出退休年齡那一行的數據
+retire_idx = df_basic[df_basic["年齡"] == retirement_age].index
+if len(retire_idx) > 0:
+    proj_asset = df_balance.loc[retire_idx[0], "累積結餘"]
     gap = target_asset - proj_asset
-    st.markdown(f"在您設定的退休年齡 **{retirement_age}** 歲時，預估累積資產為 **{proj_asset:,.0f}** 元，與您的目標資產 **{target_asset:,.0f}** 元相差 **{gap:,.0f}** 元。")
+    st.markdown(f"在您設定的退休年齡 **{retirement_age}** 歲時，預計累積資產約 **{proj_asset:,.0f}** 元。")
+    st.markdown(f"與您的目標資產 **{target_asset:,.0f}** 元相比，尚有 **{gap:,.0f}** 元的缺口。")
+    
+    if gap > 0:
+        st.markdown("**建議：**")
+        st.markdown("• 您目前的儲蓄與投資計劃可能不足以達成您的退休目標。")
+        st.markdown("• 建議您考慮延後退休、增加每月儲蓄、或調整投資組合以期望獲得更高的投資報酬率。")
+        st.markdown("• 如需專業建議，您可以預約免費的財務規劃諮詢，我們的專家會根據您的情況提供專屬策略。")
+        if st.button("立即預約免費諮詢"):
+            # 這裡可連結到預約頁面或其他服務
+            st.success("感謝您的預約申請，我們將盡快與您聯繫！")
+    else:
+        st.markdown("恭喜您！根據目前數據，您的退休規劃已達標。請持續關注投資與支出動態，保持良好財務習慣。")
 else:
-    st.markdown("無法取得退休年齡的累積資產數據。")
-# 以每隔 5 年的里程碑呈現資產累積情形
-milestones = df_basic[df_basic["年齡"] % 5 == 0]
-milestone_balance = df_balance.loc[milestones.index, "累積結餘"]
-milestone_df = pd.DataFrame({
-    "年齡": milestones["年齡"],
-    "累積結餘": milestone_balance
-})
-st.markdown("**里程碑規劃：**")
-st.dataframe(milestone_df.style.format("{:,.0f}"))
+    st.markdown("無法取得您在退休年齡的累積資產數據，請檢查您的輸入資料。")
 
 # ─────────────────────────
-# 六、【互動式情境比較】
-# ─────────────────────────
-st.subheader("互動式情境比較")
-st.markdown("請設定不同情境下的參數，以比較其對累積資產的影響。")
-st.markdown("【情境 1】：使用您目前設定的參數。")
-scenario2_ir = st.number_input("情境 2 - 投資報酬率 (%)", value=investment_return + 1, step=0.1)
-scenario3_ir = st.number_input("情境 3 - 投資報酬率 (%)", value=investment_return - 1, step=0.1)
-scenario2_sg = st.number_input("情境 2 - 年薪成長率 (%)", value=salary_growth, step=0.1)
-scenario3_sg = st.number_input("情境 3 - 年薪成長率 (%)", value=salary_growth, step=0.1)
-
-sensitivity_list = []
-scenario_labels = ["情境 1 (預設)", f"情境 2 (IR={scenario2_ir}, SG={scenario2_sg})", f"情境 3 (IR={scenario3_ir}, SG={scenario3_sg})"]
-scenario_params = [
-    (investment_return, salary_growth),
-    (scenario2_ir, scenario2_sg),
-    (scenario3_ir, scenario3_sg)
-]
-
-for idx, (ir, sg) in enumerate(scenario_params):
-    df_scenario = calculate_retirement_cashflow(
-        current_age=current_age,
-        retirement_age=retirement_age,
-        expected_lifespan=expected_lifespan,
-        monthly_expense=monthly_expense,
-        rent_or_buy=housing_choice,
-        monthly_rent=monthly_rent,
-        buy_age=buy_age,
-        home_price=home_price,
-        down_payment=down_payment,
-        loan_amount=loan_amount,
-        loan_term=loan_term,
-        loan_rate=loan_rate,
-        annual_salary=annual_salary,
-        salary_growth=sg,
-        investable_assets=investable_assets,
-        investment_return=ir,
-        inflation_rate=inflation_rate,
-        retirement_pension=retirement_pension,
-        lumpsum_list=st.session_state["lumpsum_list"]
-    )
-    temp_df = pd.DataFrame({
-        "年齡": df_scenario["年齡"],
-        "累積結餘": df_scenario["累積結餘"]
-    })
-    temp_df["情境"] = scenario_labels[idx]
-    sensitivity_list.append(temp_df)
-
-sensitivity_df = pd.concat(sensitivity_list, ignore_index=True)
-
-sensitivity_chart = alt.Chart(sensitivity_df).mark_line().encode(
-    x=alt.X("年齡:Q", title="年齡"),
-    y=alt.Y("累積結餘:Q", title="累積結餘"),
-    color=alt.Color("情境:N", title="情境"),
-    tooltip=["年齡", "累積結餘", "情境"]
-).properties(
-    title="不同情境下累積結餘比較"
-)
-st.altair_chart(sensitivity_chart, use_container_width=True)
-
-# ─────────────────────────
-# 七、行銷資訊
+# 六、行銷資訊
 # ─────────────────────────
 st.markdown("如需專業協助，歡迎造訪 [永傳家族辦公室](http://www.gracefo.com)")
