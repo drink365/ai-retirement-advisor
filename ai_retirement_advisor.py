@@ -18,20 +18,11 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
     if loan_term is None:
         loan_term = 0
     
-    st.subheader("📌 財務狀況")
-annual_salary = st.number_input("目前家庭年薪（元）", min_value=500000, max_value=100000000, value=1000000, format="%d")
-salary_growth = st.slider("預計薪資成長率（%）", min_value=0.0, max_value=10.0, value=2.0, step=0.1)
-investable_assets = st.number_input("目前可投資之資金（元）", min_value=0, max_value=1000000000, value=1000000, format="%d")
-investment_return = st.slider("預期投報率（%）", min_value=0.1, max_value=10.0, value=5.0, step=0.1)
-inflation_rate = st.slider("通貨膨脹率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
-retirement_pension = st.number_input("退休年金（元/月）", min_value=0, max_value=500000, value=20000, format="%d")
-
-if loan_amount > 0 and loan_term > 0:
+    if loan_amount > 0 and loan_term > 0:
         loan_rate_monthly = loan_rate / 100 / 12
         monthly_mortgage = (loan_amount * loan_rate_monthly) / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12))
     
-        for i, year in enumerate(years):
-        salary_income = int(annual_salary) if year <= retirement_age else 0
+    for i, year in enumerate(years):
         salary_income = int(annual_salary) if year <= retirement_age else 0
         if year < retirement_age:
             annual_salary *= (1 + salary_growth / 100)
