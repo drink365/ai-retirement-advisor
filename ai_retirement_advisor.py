@@ -35,7 +35,7 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
                 housing_expense = int(monthly_mortgage * 12)
             else:
                 housing_expense = 0
-        total_expense = (living_expense + housing_expense) * ((1 + inflation_rate / 100) ** (year - current_age))
+        total_expense = int((living_expense + housing_expense) * ((1 + inflation_rate / 100) ** (year - current_age)))
         
         annual_balance = total_income - total_expense
         remaining_assets += annual_balance
@@ -44,7 +44,7 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
         
         data.append([
             year, salary_income, investment_income, pension_income, total_income,
-            living_expense, housing_expense, int(total_expense), annual_balance, int(remaining_assets)
+            living_expense, housing_expense, total_expense, annual_balance, int(remaining_assets)
         ])
         
     return data
@@ -86,8 +86,7 @@ data = calculate_retirement_cashflow(current_age, retirement_age, expected_lifes
 
 df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退休年金", "總收入",
                                  "家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"])
-df = df.applymap(lambda x: f"<span style='color:red;'>{int(x):,}</span>" if isinstance(x, (int, float)) and x < 0 else f"{int(x):,}")
-
-st.markdown(df.to_html(escape=False), unsafe_allow_html=True)
+for col in df.columns[1:]:
+    df[col] = df[col].apply(lambda x: f"{int(x):,}")
 st.subheader("📊 退休現金流預測")
 st.markdown(df.to_html(escape=False), unsafe_allow_html=True)
