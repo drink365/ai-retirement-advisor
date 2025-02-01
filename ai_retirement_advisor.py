@@ -12,7 +12,9 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
     data = []
     remaining_assets = investable_assets
     monthly_mortgage = 0
-    if loan_amount > 0 and loan_term > 0:
+    loan_amount = loan_amount if loan_amount is not None else 0
+loan_term = loan_term if loan_term is not None else 0
+if isinstance(loan_amount, (int, float)) and isinstance(loan_term, (int, float)) and loan_amount > 0 and loan_term > 0:
         loan_rate_monthly = loan_rate / 100 / 12
         monthly_mortgage = (loan_amount * loan_rate_monthly) / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12))
     
@@ -68,7 +70,7 @@ else:
     buy_age = st.number_input("計劃買房年齡", min_value=current_age, max_value=80, value=current_age)
     home_price = st.number_input("預計買房價格（元）", min_value=0, value=15000000, format="%d")
     down_payment = st.number_input("頭期款（元）", min_value=0, value=int(home_price * 0.3), format="%d")
-    loan_amount = home_price - down_payment
+    loan_amount = st.number_input("貸款金額（元）", min_value=0, value=home_price - down_payment, format="%d")
     st.write(f"貸款金額（元）: {loan_amount:,}")
     loan_term = st.number_input("貸款年限（年）", min_value=1, max_value=40, value=30)
     loan_rate = st.slider("房貸利率（%）", min_value=0.1, max_value=10.0, value=3.0, step=0.1)
