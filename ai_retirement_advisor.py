@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
+import altair as alt
 
 # ----------------------------
 # 定義負數金額著色函式
@@ -178,9 +180,8 @@ else:
     home_price = st.number_input("房屋總價", min_value=0, value=15000000, step=100000)
     down_payment = st.number_input("首付款", min_value=0, value=4500000, step=100000)
     loan_amount = st.number_input("貸款金額", min_value=0, value=10500000, step=100000)
-    # 貸款年限預設改為 30
+    # 貸款年限預設為 30；貸款利率預設為 3%
     loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=30)
-    # 貸款利率預設改為 3%
     loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
 
 # ─────────────────────────
@@ -258,6 +259,77 @@ with st.spinner("計算中..."):
     st.dataframe(styled_df, use_container_width=True)
 
 # ─────────────────────────
-# 五、行銷資訊
+# 五、圖表呈現：累積結餘走勢
+# ─────────────────────────
+st.subheader("圖表呈現：累積結餘隨年齡變化")
+# 從多層索引中取出基本資料中的「年齡」與結餘中的「累積結餘」
+df_chart = pd.DataFrame({
+    "年齡": df_result["基本資料"]["年齡"],
+    "累積結餘": df_result["結餘"]["累積結餘"],
+    "年度結餘": df_result["結餘"]["年度結餘"]
+})
+line_chart = alt.Chart(df_chart).mark_line().encode(
+    x=alt.X("年齡:Q", title="年齡"),
+    y=alt.Y("累積結餘:Q", title="累積結餘"),
+    tooltip=["年齡", "累積結餘"]
+).properties(
+    title="累積結餘隨年齡變化"
+)
+st.altair_chart(line_chart, use_container_width=True)
+
+# ─────────────────────────
+# 六、敏感性分析：投資報酬率變化對累積結餘的影響
+# ─────────────────────────
+st.subheader("敏感性分析：投資報酬率對累積結餘的影響")
+st.markdown("請設定投資報酬率的最低與最高偏差（單位 %）：")
+var_min = st.number_input("最低偏差", value=-2.0, step=0.1)
+var_max = st.number_input("最高偏差", value=2.0, step=0.1)
+# 產生 5 個情境：從 (investment_return + var_min) 到 (investment_return + var_max)
+scenario_values = np.linspace(investment_return + var_min, investment_return + var_max, 5)
+
+sensitivity_list = []
+for ir in scenario_values:
+    df_scenario = calculate_retirement_cashflow(
+        current_age=current_age,
+        retirement_age=retirement_age,
+        expected_lifespan=expected_lifespan,
+        monthly_expense=monthly_expense,
+        rent_or_buy=housing_choice,
+        monthly_rent=monthly_rent,
+        buy_age=buy_age,
+        home_price=home_price,
+        down_payment=down_payment,
+        loan_amount=loan_amount,
+        loan_term=loan_term,
+        loan_rate=loan_rate,
+        annual_salary=annual_salary,
+        salary_growth=salary_growth,
+        investable_assets=investable_assets,
+        investment_return=ir,
+        inflation_rate=inflation_rate,
+        retirement_pension=retirement_pension,
+        lumpsum_list=st.session_state["lumpsum_list"]
+    )
+    # 取出年齡與累積結餘
+    df_temp = pd.DataFrame({
+        "年齡": df_scenario["年齡"],
+        "累積結餘": df_scenario["累積結餘"]
+    })
+    df_temp["投資報酬率"] = np.round(ir,1)
+    sensitivity_list.append(df_temp)
+sensitivity_df = pd.concat(sensitivity_list, ignore_index=True)
+
+sensitivity_chart = alt.Chart(sensitivity_df).mark_line().encode(
+    x=alt.X("年齡:Q", title="年齡"),
+    y=alt.Y("累積結餘:Q", title="累積結餘"),
+    color=alt.Color("投資報酬率:N", title="投資報酬率 (%)"),
+    tooltip=["年齡", "累積結餘", "投資報酬率"]
+).properties(
+    title="不同投資報酬率情境下累積結餘比較"
+)
+st.altair_chart(sensitivity_chart, use_container_width=True)
+
+# ─────────────────────────
+# 七、行銷資訊
 # ─────────────────────────
 st.markdown("如需專業協助，歡迎造訪 [永傳家族辦公室](http://www.gracefo.com)")
