@@ -86,6 +86,6 @@ data = calculate_retirement_cashflow(current_age, retirement_age, expected_lifes
 
 df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退休年金", "總收入",
                                  "家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"])
-df = df.style.applymap(lambda x: 'color: red;' if isinstance(x, (int, float)) and x < 0 else '', subset=["年度結餘", "累積結餘"])
+df = df.applymap(lambda x: f"<span style='color:red;'>{int(x):,}</span>" if isinstance(x, (int, float)) and x < 0 else f"{int(x):,}")
 st.subheader("📊 退休現金流預測")
 st.dataframe(df)
