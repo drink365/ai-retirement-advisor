@@ -175,8 +175,8 @@ else:
     buy_age = st.number_input("購房年齡", min_value=18, max_value=expected_lifespan, value=40)
     # 房屋總價，當用戶調整此欄位時觸發 update_payments()
     home_price = st.number_input("房屋總價", key="home_price", value=15000000, step=100000, on_change=update_payments)
-    down_payment = st.number_input("首付款", key="down_payment", value=st.session_state.get("down_payment", int(15000000 * 0.3)), step=100000)
-    loan_amount = st.number_input("貸款金額", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000 * 0.3)), step=100000)
+    down_payment = st.number_input("首付款", key="down_payment", value=st.session_state.get("down_payment", int(15000000*0.3)), step=100000)
+    loan_amount = st.number_input("貸款金額", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000*0.3)), step=100000)
     loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=30)
     loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
 
@@ -224,7 +224,7 @@ with st.spinner("計算中..."):
         rent_or_buy=housing_choice,
         monthly_rent=monthly_rent,
         buy_age=buy_age,
-        home_price=home_price if housing_choice == "購房" else 0,
+        home_price=home_price if housing_choice=="購房" else 0,
         down_payment=down_payment,
         loan_amount=loan_amount,
         loan_term=loan_term,
@@ -255,7 +255,48 @@ with st.spinner("計算中..."):
     st.dataframe(styled_df, use_container_width=True)
 
 # ─────────────────────────
-# 五、圖表呈現：累積結餘趨勢
+# 五、退休風格測驗與智能建議報告
+# ─────────────────────────
+st.subheader("退休風格測驗與智能建議報告")
+# 退休風格測驗：讓用戶選擇理想的退休生活風格，並推薦目標資產
+retire_style = st.radio("請問您的理想退休生活風格？", ["低調簡約", "舒適中產", "高端奢華"], key="retire_style")
+if retire_style == "低調簡約":
+    recommended_target = 10000000
+elif retire_style == "舒適中產":
+    recommended_target = 20000000
+else:
+    recommended_target = 50000000
+st.markdown(f"根據您的選擇，推薦的退休目標資產約為 **{recommended_target:,.0f}** 元。")
+# 用戶可根據推薦值進行調整
+target_asset = st.number_input("請輸入您的退休目標資產（元）", min_value=0, value=recommended_target, step=1000000)
+
+# 計算退休年齡那一行的累積結餘
+df_basic = df_result["基本資料"]
+df_balance = df_result["結餘"]
+retire_idx = df_basic[df_basic["年齡"] == retirement_age].index
+if len(retire_idx) > 0:
+    proj_asset = df_balance.loc[retire_idx[0], "累積結餘"]
+    gap = target_asset - proj_asset
+    st.markdown(f"在您設定的退休年齡 **{retirement_age}** 歲時，預計累積資產約 **{proj_asset:,.0f}** 元。")
+    st.markdown(f"與您的目標資產 **{target_asset:,.0f}** 元相比，尚有 **{gap:,.0f}** 元的缺口。")
+    
+    # 財務健康指數：計算目標達成百分比
+    health_score = int((proj_asset / target_asset) * 100) if target_asset > 0 else 0
+    st.metric(label="📊 財務健康指數", value=f"{health_score} 分", delta=health_score - 80)
+    
+    if gap > 0:
+        st.markdown("**建議：**")
+        st.markdown("• 您目前的儲蓄與投資計劃可能不足以達成您的退休目標。")
+        st.markdown("• 建議您考慮延後退休、增加每月儲蓄、或調整投資組合以期望獲得更高的投資報酬率。")
+        st.markdown("• 如需專業建議，您可以預約免費的財務規劃諮詢，我們的專家會根據您的情況提供專屬策略。")
+        st.markdown('<a href="https://www.gracefo.com" target="_blank"><button style="padding:10px 20px;background-color:#4CAF50;color:white;border:none;border-radius:5px;">立即預約免費諮詢</button></a>', unsafe_allow_html=True)
+    else:
+        st.markdown("恭喜您！根據目前數據，您的退休規劃已達標。請持續關注投資與支出動態，保持良好財務習慣。")
+else:
+    st.markdown("無法取得您在退休年齡的累積資產數據，請檢查您的輸入資料。")
+
+# ─────────────────────────
+# 六、圖表呈現：累積結餘趨勢
 # ─────────────────────────
 st.subheader("圖表呈現：累積結餘趨勢")
 df_chart = pd.DataFrame({
@@ -272,7 +313,7 @@ line_chart = alt.Chart(df_chart).mark_line(point=True).encode(
 st.altair_chart(line_chart, use_container_width=True)
 
 # ─────────────────────────
-# 六、敏感性分析：通膨率對累積結餘的影響
+# 七、敏感性分析：通膨率對累積結餘的影響
 # ─────────────────────────
 st.subheader("敏感性分析：通膨率對累積結餘的影響")
 inf_min = st.number_input("最低通膨率 (%)", value=inflation_rate - 1, step=0.1, key="inf_min")
@@ -288,7 +329,7 @@ for ir in inflation_scenarios:
         rent_or_buy=housing_choice,
         monthly_rent=monthly_rent,
         buy_age=buy_age,
-        home_price=home_price if housing_choice == "購房" else 0,
+        home_price=home_price if housing_choice=="購房" else 0,
         down_payment=down_payment,
         loan_amount=loan_amount,
         loan_term=loan_term,
@@ -317,32 +358,6 @@ inf_chart = alt.Chart(inf_sensitivity_df).mark_line().encode(
     title="不同通膨率情境下累積結餘比較"
 )
 st.altair_chart(inf_chart, use_container_width=True)
-
-# ─────────────────────────
-# 七、智能建議報告與行動提示
-# ─────────────────────────
-st.subheader("智能建議報告與行動提示")
-target_asset = st.number_input("請輸入您的退休目標資產（元）", min_value=0, value=20000000, step=1000000)
-
-df_basic = df_result["基本資料"]
-df_balance = df_result["結餘"]
-retire_idx = df_basic[df_basic["年齡"] == retirement_age].index
-if len(retire_idx) > 0:
-    proj_asset = df_balance.loc[retire_idx[0], "累積結餘"]
-    gap = target_asset - proj_asset
-    st.markdown(f"在您設定的退休年齡 **{retirement_age}** 歲時，預計累積資產約 **{proj_asset:,.0f}** 元。")
-    st.markdown(f"與您的目標資產 **{target_asset:,.0f}** 元相比，尚有 **{gap:,.0f}** 元的缺口。")
-    
-    if gap > 0:
-        st.markdown("**建議：**")
-        st.markdown("• 您目前的儲蓄與投資計劃可能不足以達成您的退休目標。")
-        st.markdown("• 建議您考慮延後退休、增加每月儲蓄、或調整投資組合以期望獲得更高的投資報酬率。")
-        st.markdown("• 如需專業建議，您可以預約免費的財務規劃諮詢，我們的專家會根據您的情況提供專屬策略。")
-        st.markdown('<a href="https://www.gracefo.com" target="_blank"><button style="padding:10px 20px;background-color:#4CAF50;color:white;border:none;border-radius:5px;">立即預約免費諮詢</button></a>', unsafe_allow_html=True)
-    else:
-        st.markdown("恭喜您！根據目前數據，您的退休規劃已達標。請持續關注投資與支出動態，保持良好財務習慣。")
-else:
-    st.markdown("無法取得您在退休年齡的累積資產數據，請檢查您的輸入資料。")
 
 # ─────────────────────────
 # 八、行銷資訊
