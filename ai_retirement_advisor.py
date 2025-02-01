@@ -15,13 +15,9 @@ def color_negative_red(val):
     return "color: red" if v < 0 else ""
 
 # ----------------------------
-# 定義安全重新載入頁面的函式
+# 定義安全重新載入頁面的函式（此版本主要依靠 Streamlit 自動 re-run）
 # ----------------------------
 def safe_rerun():
-    """
-    嘗試使用 st.experimental_rerun 重新載入頁面，
-    若發生錯誤則不進行任何操作。
-    """
     try:
         st.experimental_rerun()
     except Exception:
@@ -133,31 +129,37 @@ def calculate_retirement_cashflow(
 st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
-# ────────────────
-# 一、基本資料輸入區
-# ────────────────
+# ─────────────────────────
+# 一、基本資料輸入區（使用 st.columns 進行分欄排版，響應式呈現）
+# ─────────────────────────
 st.subheader("基本資料")
-current_age = st.number_input("目前年齡", min_value=18, max_value=100, value=40)
-retirement_age = st.number_input("退休年齡", min_value=current_age, max_value=100, value=60)
-expected_lifespan = st.number_input("預期壽命", min_value=retirement_age, max_value=150, value=100)
-monthly_expense = st.number_input("每月生活費用", min_value=1000, value=30000, step=1000)
-annual_salary = st.number_input("目前年薪", min_value=0, value=1000000, step=10000)
-salary_growth = st.number_input("年薪成長率 (%)", min_value=0.0, value=2.0, step=0.1)
-investable_assets = st.number_input("初始可投資資產", min_value=0, value=1000000, step=10000)
-investment_return = st.number_input("投資報酬率 (%)", min_value=0.0, value=5.0, step=0.1)
-inflation_rate = st.number_input("通膨率 (%)", min_value=0.0, value=2.0, step=0.1)
+col1, col2 = st.columns(2)
+with col1:
+    current_age = st.number_input("目前年齡", min_value=18, max_value=100, value=40)
+    retirement_age = st.number_input("退休年齡", min_value=current_age, max_value=100, value=60)
+    expected_lifespan = st.number_input("預期壽命", min_value=retirement_age, max_value=150, value=100)
+with col2:
+    monthly_expense = st.number_input("每月生活費用", min_value=1000, value=30000, step=1000)
+    annual_salary = st.number_input("年薪", min_value=0, value=1000000, step=10000)
+    salary_growth = st.number_input("年薪成長率 (%)", min_value=0.0, value=2.0, step=0.1)
+st.markdown("---")
+col3, col4 = st.columns(2)
+with col3:
+    investable_assets = st.number_input("初始可投資資產", min_value=0, value=1000000, step=10000)
+with col4:
+    investment_return = st.number_input("投資報酬率 (%)", min_value=0.0, value=5.0, step=0.1)
 retirement_pension = st.number_input("退休月退休金", min_value=0, value=20000, step=1000)
+inflation_rate = st.number_input("通膨率 (%)", min_value=0.0, value=2.0, step=0.1)
 
-# ────────────────
+# ─────────────────────────
 # 二、住房狀況輸入區
-# ────────────────
+# ─────────────────────────
 st.subheader("住房狀況")
-housing_choice = st.selectbox("住房選擇", ["租房", "購房"])
-# 統一輸入每月租金（無論租房或購房，購房前皆以此租金計算）
+# 統一輸入每月租金（不論租房或購房，購房前皆以此租金計算）
 monthly_rent = st.number_input("每月租金", min_value=1000, value=20000, step=1000)
-
+housing_choice = st.selectbox("住房選擇", ["租房", "購房"])
 if housing_choice == "租房":
-    # 若租房，購房相關參數以預設值帶入計算
+    # 租房時，購房相關參數以預設值帶入計算
     buy_age = current_age  
     home_price = 0
     down_payment = 0
@@ -165,7 +167,7 @@ if housing_choice == "租房":
     loan_term = 0
     loan_rate = 0.0
 else:
-    # 允許購房年齡小於目前年齡，代表已經購房；用貸款年期判斷還剩幾年房貸
+    # 允許購房年齡小於目前年齡（代表已購房），則貸款年期用來決定剩餘還款期數
     buy_age = st.number_input("購房年齡", min_value=18, max_value=expected_lifespan, value=40)
     home_price = st.number_input("房屋總價", min_value=0, value=15000000, step=100000)
     down_payment = st.number_input("首付款", min_value=0, value=4500000, step=100000)
@@ -173,17 +175,21 @@ else:
     loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=20)
     loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=2.0, step=0.1)
 
-# ────────────────
+# ─────────────────────────
 # 三、一次性支出管理
-# ────────────────
+# ─────────────────────────
 st.subheader("一次性支出 (偶發性)")
 if "lumpsum_list" not in st.session_state:
     st.session_state["lumpsum_list"] = []
 
-with st.form("add_lumpsum"):
-    new_age = st.number_input("新增一次性支出 - 年齡", min_value=30, max_value=110, value=40, key="new_age")
-    new_amt = st.number_input("新增一次性支出 - 金額", value=100000, key="new_amt")
-    submitted_lumpsum = st.form_submit_button("新增")
+with st.container():
+    col_ls1, col_ls2, col_ls3 = st.columns([1,1,2])
+    with col_ls1:
+        new_age = st.number_input("新增支出 - 年齡", min_value=30, max_value=110, value=40, key="new_age")
+    with col_ls2:
+        new_amt = st.number_input("新增支出 - 金額", value=100000, key="new_amt")
+    with col_ls3:
+        submitted_lumpsum = st.button("新增一次性支出")
     if submitted_lumpsum:
         if new_age >= 30 and new_amt != 0:
             st.session_state["lumpsum_list"].append({"年齡": new_age, "金額": new_amt})
@@ -193,16 +199,19 @@ with st.form("add_lumpsum"):
             st.warning("無效輸入：年齡須 ≥ 30 且金額 ≠ 0。")
 
 # 顯示目前一次性支出項目，並提供刪除按鈕
-for idx, entry in enumerate(st.session_state["lumpsum_list"]):
-    if st.button(f"刪除：年齡 {entry['年齡']}、金額 {entry['金額']}", key=f"del_{idx}"):
-        del st.session_state["lumpsum_list"][idx]
-        st.success("刪除成功！")
-        safe_rerun()
+if st.session_state["lumpsum_list"]:
+    st.markdown("**目前一次性支出項目：**")
+    for idx, entry in enumerate(st.session_state["lumpsum_list"]):
+        if st.button(f"刪除：年齡 {entry['年齡']}、金額 {entry['金額']}", key=f"del_{idx}"):
+            del st.session_state["lumpsum_list"][idx]
+            st.success("刪除成功！")
+            safe_rerun()
 
-# ────────────────
-# 四、計算與顯示結果
-# ────────────────
-if st.button("計算退休現金流"):
+# ─────────────────────────
+# 四、計算並自動顯示結果（使用 st.spinner 提示計算中）
+# ─────────────────────────
+st.subheader("預估退休現金流")
+with st.spinner("計算中..."):
     df_result = calculate_retirement_cashflow(
         current_age=current_age,
         retirement_age=retirement_age,
@@ -225,10 +234,9 @@ if st.button("計算退休現金流"):
         lumpsum_list=st.session_state["lumpsum_list"]
     )
     styled_df = df_result.style.format("{:,.0f}").applymap(color_negative_red)
-    st.subheader("## 預估未來現金流")
     st.dataframe(styled_df, use_container_width=True)
 
-# ────────────────
+# ─────────────────────────
 # 五、行銷資訊
-# ────────────────
+# ─────────────────────────
 st.markdown("如需專業協助，歡迎造訪 [永傳家族辦公室](http://www.gracefo.com)")
