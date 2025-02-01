@@ -6,13 +6,13 @@ import pandas as pd
 # ----------------------------
 def safe_rerun():
     """
-    若 Streamlit 支援 experimental_rerun 則重新載入頁面，
-    否則顯示錯誤訊息，請使用者更新 Streamlit 版本。
+    嘗試使用 st.experimental_rerun 重新載入頁面，
+    若發生 AttributeError 則不進行任何操作。
     """
-    if hasattr(st, "experimental_rerun"):
+    try:
         st.experimental_rerun()
-    else:
-        st.error("您的 Streamlit 版本不支援重新載入功能，請更新 Streamlit 至最新版本。")
+    except AttributeError:
+        pass
 
 # =============================
 # 1) 計算退休現金流函式
