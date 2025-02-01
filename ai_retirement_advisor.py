@@ -15,7 +15,7 @@ st.subheader("讓退休規劃變得簡單又安心！")
 st.markdown("""
 👋 **嗨！我是 Nana**，你的 AI 退休助手！  
 我可以幫助你計算 **退休金需求、投資報酬預測、通膨影響、房產決策**，  
-還可以評估你的 **財務健康指數**，讓你快速掌握退休規劃進度！  
+還可以評估你的 **財務健康指數**，讓你快速掌握退休規劃進度！ 😊
 """)
 
 # ----------------------------
@@ -61,37 +61,43 @@ with st.expander("🏡 住房狀況", expanded=True):
         loan_rate = st.number_input("📈 貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
 
 # ----------------------------
-# 三、財務健康指數與退休風格測驗
+# 三、計算退休現金流
 # ----------------------------
-with st.expander("🎯 財務健康指數與退休風格測驗", expanded=True):
-    st.markdown("💬 **Nana：告訴我你的退休夢想，我來幫你評估財務狀況！**")
+def calculate_retirement_cashflow():
+    """ 計算詳細的退休現金流，包括收入、支出、結餘 """
+    ages = list(range(current_age, expected_lifespan + 1))
+    data = []
+    remaining_assets = investable_assets
 
-    retire_style = st.radio("你理想的退休生活風格是？", ["低調簡約", "舒適中產", "高端奢華"], key="retire_style")
-    recommended_target = {"低調簡約": 10000000, "舒適中產": 20000000, "高端奢華": 50000000}[retire_style]
+    for age in ages:
+        salary_income = annual_salary if age <= retirement_age else 0
+        investment_income = remaining_assets * (investment_return / 100) if remaining_assets > 0 else 0
+        pension_income = retirement_pension * 12 if age > retirement_age else 0
+        total_income = salary_income + investment_income + pension_income
 
-    st.markdown(f"✅ **根據你的選擇，Nana 建議你的退休目標資產為：** 💰 **{recommended_target:,.0f} 元**")
-    target_asset = st.number_input("💡 你希望的退休目標資產（元）", min_value=0, value=recommended_target, step=1000000)
+        living_expense = monthly_expense * 12
+        housing_expense = monthly_rent * 12 if housing_choice == "租房" else 0
 
-    health_score = int((10000000 / target_asset) * 100) if target_asset > 0 else 0  # 假設值
-    st.metric(label="📈 Nana 給你的財務健康指數", value=f"{health_score} 分", delta=health_score - 80)
+        total_expense = living_expense + housing_expense
+        annual_balance = total_income - total_expense
+        remaining_assets = remaining_assets + annual_balance
 
-    st.info("""
-    **💡 Nana 提醒你：**  
-    **📌 80 分以上：你的財務規劃相當穩健！** 🎉  
-    **📌 60-79 分：建議適度調整投資或儲蓄！** 💡  
-    **📌 低於 60 分：請儘早檢視退休計畫，可能有資金不足風險！** ⚠️  
-    """)
+        data.append([age, salary_income, investment_income, pension_income, total_income,
+                     living_expense, housing_expense, total_expense, annual_balance, remaining_assets])
+
+    df = pd.DataFrame(data, columns=[
+        "年齡", "薪資收入", "投資收益", "退休年金", "總收入",
+        "生活費用", "住房費用", "總支出", "年度結餘", "累積結餘"
+    ])
+    return df
 
 # ----------------------------
-# 四、預估退休現金流與趨勢
+# 四、顯示預估退休現金流
 # ----------------------------
 with st.expander("📊 預估退休現金流與趨勢", expanded=True):
     st.markdown("💡 **Nana 幫你模擬退休財務趨勢，看看你的資產變化！**")
 
-    df_cashflow = pd.DataFrame({
-        "年齡": list(range(40, 100)),  # 假設年齡範圍
-        "累積結餘": np.linspace(10000000, 5000000, 60)  # 假設數據
-    })
+    df_cashflow = calculate_retirement_cashflow()
     st.dataframe(df_cashflow.style.format("{:,.0f}"), use_container_width=True)
 
     line_chart = alt.Chart(df_cashflow).mark_line(point=True).encode(
