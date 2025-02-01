@@ -12,16 +12,16 @@ def calculate_retirement_cashflow(
     buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate,
     annual_salary, salary_growth, investable_assets,
     investment_return, inflation_rate, retirement_pension,
-    lumpsum_df
+    lumpsum_list
 ):
     """
     計算退休現金流：
       - 收入：薪資（退休前）、投資收益、退休年金（退休後）
       - 支出：
-         1) 生活費（含通膨）
-         2) 住房費（租房或買房邏輯）
-         3) 一次性支出 lumpsum（不含通膨），僅計算 lumpsum_df 中
-            年齡 ≥ current_age 且 金額 > 0 的行，且僅在該年發生的支出會計入
+          1) 生活費（含通膨）
+          2) 住房費（租房或買房邏輯）
+          3) 一次性支出 lumpsum（不含通膨），僅計算 lumpsum_list 中年齡 ≥ current_age 且 金額 > 0 的資料，
+             並在該年發生的支出會被累加。
     """
     ages = list(range(current_age, expected_lifespan + 1))
     data = []
@@ -33,12 +33,11 @@ def calculate_retirement_cashflow(
         lr_monthly = loan_rate / 100 / 12
         monthly_mortgage = loan_amount * lr_monthly / (1 - (1 + lr_monthly) ** (-loan_term * 12))
 
-    # 若 lumpsum_df 為空，確保有正確欄位（"年齡"、"金額"）
-    if lumpsum_df.empty:
-        lumpsum_df = pd.DataFrame(columns=["年齡", "金額"])
+    # 將一次性支出清單轉為 DataFrame方便遍歷
+    lumpsum_df = pd.DataFrame(lumpsum_list) if lumpsum_list else pd.DataFrame(columns=["年齡", "金額"])
 
     for i, age in enumerate(ages):
-        # 薪資：退休前有薪資，退休後無
+        # 薪資（退休前有薪資，退休後為 0）
         salary_income = int(annual_salary) if age <= retirement_age else 0
         if age < retirement_age:
             annual_salary *= (1 + salary_growth / 100)
@@ -54,7 +53,7 @@ def calculate_retirement_cashflow(
         # 生活費（尚未乘通膨）
         living_expense = int(monthly_expense * 12)
 
-        # 住房費用
+        # 住房費用計算：租房或買房邏輯
         if rent_or_buy == "租房":
             housing_expense = int(rent_amount * 12)
         else:
@@ -68,22 +67,21 @@ def calculate_retirement_cashflow(
             else:
                 housing_expense = 0
 
-        # 計算通膨影響下的基礎支出
+        # 通膨影響下的基礎支出
         base_expense = (living_expense + housing_expense) * ((1 + inflation_rate / 100) ** i)
 
-        # 一次性支出：僅累加 lumpsum_df 中年齡等於當前年齡的行
+        # 累加一次性支出：僅計算 lumpsum_df 中滿足年齡 == 當前年齡，且年齡 ≥ current_age, 金額 > 0 的行
         lumpsum_expense = 0
         for _, row in lumpsum_df.iterrows():
             try:
-                expense_age = int(row["年齡"])
-                expense_amt = float(row["金額"])
+                exp_age = int(row["年齡"])
+                exp_amt = float(row["金額"])
             except (ValueError, TypeError):
                 continue
-            # 僅計算年齡 ≥ current_age 且金額 > 0 的有效數據
-            if expense_age < current_age or expense_amt <= 0:
+            if exp_age < current_age or exp_amt <= 0:
                 continue
-            if expense_age == age:
-                lumpsum_expense += expense_amt
+            if exp_age == age:
+                lumpsum_expense += exp_amt
 
         total_expense = int(base_expense) + int(lumpsum_expense)
         annual_balance = total_income - total_expense
@@ -125,26 +123,22 @@ def calculate_retirement_cashflow(
     return df
 
 # ===========================
-# 2) Streamlit App
+# 2) Streamlit App 主程式
 # ===========================
 st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
-# 使用 session_state 來管理一次性支出資料（僅包含「年齡」和「金額」兩欄）
-if "lumpsum_df" not in st.session_state:
-    st.session_state["lumpsum_df"] = pd.DataFrame(columns=["年齡", "金額"])
+# 使用 session_state 管理一次性支出資料，這裡只存放「年齡」和「金額」兩欄
+if "lumpsum_list" not in st.session_state:
+    st.session_state["lumpsum_list"] = []  # 初始空清單
 
-# ------------------
-# 基本資料
-# ------------------
+# --- 基本資料 ---
 st.subheader("📌 基本資料")
 current_age = st.number_input("您的目前年齡", min_value=30, max_value=80, value=40)
 retirement_age = st.number_input("您計劃退休的年齡", min_value=current_age + 1, max_value=90, value=60)
 expected_lifespan = st.number_input("預期壽命（歲）", min_value=70, max_value=110, value=100)
 
-# ------------------
-# 家庭與財務狀況
-# ------------------
+# --- 家庭與財務狀況 ---
 st.subheader("📌 家庭與財務狀況")
 monthly_expense = st.number_input("每月生活支出（元）", min_value=1000, max_value=500000, value=30000, format="%d")
 annual_salary = st.number_input("目前家庭年薪（元）", min_value=500000, max_value=100000000, value=1000000, format="%d")
@@ -154,9 +148,7 @@ investment_return = st.slider("預期投報率（%）", min_value=0.1, max_value
 inflation_rate = st.slider("通貨膨脹率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
 retirement_pension = st.number_input("退休年金（元/月）", min_value=0, max_value=500000, value=20000, format="%d")
 
-# ------------------
-# 住房計畫
-# ------------------
+# --- 住房計畫 ---
 st.subheader("📌 住房計畫")
 rent_or_buy = st.radio("您的住房計畫", ["租房", "買房"])
 
@@ -174,43 +166,44 @@ else:
     loan_amount = st.number_input("貸款金額（元）", min_value=0, value=home_price - down_payment, format="%d")
     loan_term = st.number_input("貸款年限（年）", min_value=1, max_value=30, value=20)
     loan_rate = st.number_input("貸款利率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
-
     if loan_amount > 0 and loan_term > 0:
         lr_monthly = loan_rate / 100 / 12
         monthly_mortgage_temp = loan_amount * lr_monthly / (1 - (1 + lr_monthly) ** (-loan_term * 12))
     else:
         monthly_mortgage_temp = 0
-
     st.write(f"每月房貸: {monthly_mortgage_temp:,.0f} 元")
 
 # -----------------------------
-# 一次性支出 (偶發性)
+# 一次性支出：利用 st.form 新增，並以 st.table 顯示目前清單
 # -----------------------------
 st.subheader("📌 一次性支出 (偶發性)")
-st.write(f"請在下表中直接新增或編輯一次性支出。年齡必須 ≥ {current_age} 且金額 > 0，否則該列將不計算。")
 
-# 使用 st.data_editor 只顯示「年齡」和「金額」兩個欄位
-lumpsum_df_edited = st.data_editor(
-    st.session_state["lumpsum_df"],
-    column_config={
-        "年齡": st.column_config.NumberColumn(
-            "年齡 (≥目前年齡)",
-            min_value=current_age,
-            step=1
-        ),
-        "金額": st.column_config.NumberColumn(
-            "金額 (>0)",
-            min_value=1,
-            step=1000
-        )
-    },
-    num_rows="dynamic",
-    use_container_width=True
-)
+# 顯示目前一次性支出清單（如果有的話）
+if st.session_state["lumpsum_list"]:
+    st.write("目前一次性支出清單：")
+    st.table(pd.DataFrame(st.session_state["lumpsum_list"]))
+else:
+    st.write("尚未新增任何一次性支出。")
 
-# 後處理：移除空白行（例如尚未填完整的行）
-lumpsum_df_edited = lumpsum_df_edited.dropna(subset=["年齡", "金額"])
-st.session_state["lumpsum_df"] = lumpsum_df_edited
+with st.form("add_lumpsum"):
+    new_age = st.number_input("新增一次性支出 - 年齡", min_value=current_age, value=current_age)
+    new_amt = st.number_input("新增一次性支出 - 金額", min_value=1, value=100000)
+    submitted = st.form_submit_button("新增")
+    if submitted:
+        if new_age >= current_age and new_amt > 0:
+            st.session_state["lumpsum_list"].append({"年齡": new_age, "金額": new_amt})
+            st.success(f"新增成功：年齡 {new_age}，金額 {new_amt}")
+        else:
+            st.warning("無效輸入：年齡必須 ≥ 當前年齡且金額 > 0。")
+
+# 也提供刪除功能
+if st.session_state["lumpsum_list"]:
+    st.write("#### 刪除一次性支出")
+    for idx, entry in enumerate(st.session_state["lumpsum_list"]):
+        if st.button(f"刪除：年齡 {entry['年齡']}、金額 {entry['金額']}", key=f"del_{idx}"):
+            st.session_state["lumpsum_list"].pop(idx)
+            st.success("刪除成功！")
+            st.experimental_rerun()
 
 # -----------------------------
 # 計算退休現金流
@@ -221,7 +214,7 @@ df_result = calculate_retirement_cashflow(
     buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate,
     annual_salary, salary_growth, investable_assets,
     investment_return, inflation_rate, retirement_pension,
-    st.session_state["lumpsum_df"]
+    st.session_state["lumpsum_list"]
 )
 
 def style_negative(val):
@@ -239,12 +232,12 @@ st.dataframe(styled_df, use_container_width=True)
 st.markdown("""
 ### 更多貼心提醒
 
-- **定期檢視**：建議每隔 6~12 個月檢視一次財務與保險規劃，以因應人生變化。
+- **定期檢視**：建議每隔 6~12 個月檢視一次財務與保險規劃。
 - **保險規劃**：根據家庭結構，適時調整壽險與健康險以降低風險。
 - **投資分配**：分散投資可降低單一資產波動對財務的影響。
 - **退休年金**：若累積結餘偏低，請考慮提高投資報酬率或延後退休年齡。
 - **家族傳承**：有需求者可結合信託與保險工具，為後代做好資產配置與節稅安排。
 
 想了解更多專業建議，歡迎造訪  
-[永傳家族辦公室](http://www.gracefo.com) 了解更完整的財務與傳承服務！
+[永傳家族辦公室](http://www.gracefo.com) 了解更完整的服務！
 """)
