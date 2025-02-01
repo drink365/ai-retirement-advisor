@@ -32,6 +32,8 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
         
         living_expense = int(monthly_expense * 12)
         if rent_or_buy == "租房":
+    rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
+    buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate, annual_salary, salary_growth = 0, 0, 0, 0, 0, 0, 0, 0
             housing_expense = int(rent_amount * 12)
         else:
             if year == buy_age:
