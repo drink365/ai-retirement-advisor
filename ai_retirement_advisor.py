@@ -20,6 +20,8 @@ def calculate_retirement_cashflow(
     1. 在尚未買房前，將住房費用視為租金。
     2. 買房當年需一次支付頭期款與當年房貸。
     3. 若還在貸款期內，僅支付房貸；貸款期滿後住房費用為 0。
+    4. "剩餘資產" 欄位改為 "累積結餘"。
+    5. "年度結餘" 與 "累積結餘" 欄位放在 "結餘" 分群。
     """
     years = list(range(current_age, expected_lifespan + 1))
     data = []
@@ -39,13 +41,12 @@ def calculate_retirement_cashflow(
         # 薪資收入（退休後無薪資）
         salary_income = int(annual_salary) if year <= retirement_age else 0
         if year < retirement_age:
-            # 年薪成長
             annual_salary *= (1 + salary_growth / 100)
 
         # 投資收益
         investment_income = (
-            int(remaining_assets * (investment_return / 100)) 
-            if remaining_assets > 0 
+            int(remaining_assets * (investment_return / 100))
+            if remaining_assets > 0
             else 0
         )
         # 退休年金
@@ -62,7 +63,6 @@ def calculate_retirement_cashflow(
         else:
             # 買房情境
             if year < buy_age:
-                # 還沒買房前，使用租金
                 housing_expense = int(rent_amount * 12)
             elif year == buy_age:
                 # 買房當年，支付頭期 + 當年房貸
@@ -71,7 +71,7 @@ def calculate_retirement_cashflow(
                 # 貸款期內，只支付房貸
                 housing_expense = int(monthly_mortgage * 12)
             else:
-                # 貸款期滿或更晚，無需住房費用
+                # 貸款期滿後，無需住房費用
                 housing_expense = 0
 
         # 考慮通膨
@@ -82,14 +82,13 @@ def calculate_retirement_cashflow(
         # 年度結餘 = 總收入 - 總支出
         annual_balance = total_income - total_expense
 
-        # 剩餘資產：先加年度結餘，再考慮投資成長 & 通膨影響
+        # 累積結餘：先加年度結餘，再考慮投資成長 & 通膨影響
         remaining_assets = (
             (remaining_assets + annual_balance)
             * (1 + investment_return / 100)
             / (1 + inflation_rate / 100)
         )
 
-        # 收集每年的結果
         data.append([
             year,
             salary_income,
@@ -116,7 +115,7 @@ def calculate_retirement_cashflow(
     # 將 "剩餘資產" 改為 "累積結餘"
     df.rename(columns={"剩餘資產": "累積結餘"}, inplace=True)
 
-    # 調整欄位順序，並使用多層表頭做收入/支出分組
+    # 調整欄位順序，並使用多層表頭將年度結餘 & 累積結餘歸入 "結餘" 分群
     df = df[
         [
             "年份",
@@ -135,8 +134,8 @@ def calculate_retirement_cashflow(
         ("支出", "生活費用"),
         ("支出", "住房費用"),
         ("支出", "總支出"),
-        ("", "年度結餘"),
-        ("", "累積結餘")
+        ("結餘", "年度結餘"),
+        ("結餘", "累積結餘"),
     ])
 
     return df
@@ -208,18 +207,14 @@ data_df = calculate_retirement_cashflow(
 # 數據格式化 & 負數標紅 & 千分號
 # ----------------
 def style_negative(val):
-    # 避免MultiIndex的非數字欄位報錯，先確定 val 是否為數字
+    # 確定 val 是否為數字，避免非數值欄位報錯
     color = "red" if (isinstance(val, (int, float)) and val < 0) else "black"
     return f"color: {color}"
 
-# 取得所有欄位（多層表頭）
 all_columns = data_df.columns
-# 直接指定所有欄位套用樣式
-numeric_cols = all_columns
-
 styled_df = data_df.style
-styled_df = styled_df.applymap(style_negative, subset=pd.IndexSlice[:, numeric_cols])
-styled_df = styled_df.format("{:,.0f}", subset=pd.IndexSlice[:, numeric_cols])
+styled_df = styled_df.applymap(style_negative, subset=pd.IndexSlice[:, all_columns])
+styled_df = styled_df.format("{:,.0f}", subset=pd.IndexSlice[:, all_columns])
 
 # ----------------
 # 顯示結果
@@ -232,3 +227,18 @@ st.download_button(
     file_name="retirement_plan.csv",
     mime="text/csv"
 )
+
+# ----------------
+# 行銷提醒
+# ----------------
+st.markdown("""
+### 行銷方面的提醒
+
+- **定期檢視**：建議每隔 6~12 個月檢視一次財務與保險規劃，以因應人生變化。
+- **保險規劃**：可考慮根據家庭結構，增加或調整壽險與健康險，避免風險發生時影響退休生活。
+- **投資分配**：建議保持分散投資原則，降低單一資產波動對財務的衝擊。
+- **退休年金**：如果累積結餘偏低，可考慮提高投資報酬率或延後退休年齡，以確保退休後現金流足夠。
+- **家族傳承**：如有家族企業或高資產規劃需求，可結合信託與保險工具，為後代做好資產配置與節稅安排。
+
+有任何進一步的財務或保險需求，歡迎向專業顧問諮詢，打造更完善的退休與傳承計劃！
+""")
