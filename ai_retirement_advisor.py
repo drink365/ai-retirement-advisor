@@ -94,6 +94,14 @@ data = calculate_retirement_cashflow(current_age, retirement_age, expected_lifes
 df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退休年金", "總收入",
                                  "家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"])
 
+# 檢查 DataFrame 欄位，避免 KeyError
+st.write("DataFrame 欄位:", df.columns)
+
+# 格式化數字，增加千分位逗號
+for col in ["薪資收入", "投資收入", "退休年金", "總收入", "家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"]:
+    if col in df.columns:
+        df[col] = df[col].apply(lambda x: f"{x:,}")
+
 # 格式化數字，增加千分位逗號
 for col in ["每月生活支出（元）", "每月租金（元）", "目前家庭年薪（元）", "目前可投資之資金（元）","退休年金（元/月）",  "薪資收入", "投資收入", "退休年金", "總收入", "家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"]:
     df[col] = df[col].apply(lambda x: f"{x:,}")
