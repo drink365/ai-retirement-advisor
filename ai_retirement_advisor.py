@@ -133,40 +133,40 @@ def calculate_retirement_cashflow(
 # ===========================
 # 主程式：使用者介面
 # ===========================
-st.set_page_config(page_title="AI退休助手Nana", layout="wide")
-st.header("👋 嗨，我是您的退休助手 Nana")
-st.markdown("歡迎使用 AI 退休助手 Nana，讓我們一起規劃您夢想中的退休生活！")
+st.set_page_config(page_title="AI退休助手 Nana", layout="wide")
+st.header("👋 哈囉！我是你超可愛的退休小夥伴 Nana！")
+st.markdown("歡迎來到你的退休夢想工廠，讓我們一起輕鬆規劃未來的精彩生活吧！ 😎✨")
 
 # ─────────────────────────
 # 一、基本資料輸入區
 # ─────────────────────────
-st.subheader("基本資料")
-st.info("請先提供您的基本資料，讓我能夠更了解您的現況並量身訂做退休藍圖。")
+st.subheader("📝 基本資料")
+st.info("先跟我打聲招呼～告訴我一些你的基本資料，讓 Nana 可以為你量身打造退休計劃！")
 col1, col2 = st.columns(2)
 with col1:
-    current_age = st.number_input("目前年齡", min_value=18, max_value=100, value=40)
-    retirement_age = st.number_input("退休年齡", min_value=current_age, max_value=100, value=60)
-    expected_lifespan = st.number_input("預期壽命", min_value=retirement_age, max_value=150, value=100)
+    current_age = st.number_input("你的年齡？", min_value=18, max_value=100, value=40)
+    retirement_age = st.number_input("打算幾歲退休？", min_value=current_age, max_value=100, value=60)
+    expected_lifespan = st.number_input("你預期能活到幾歲？", min_value=retirement_age, max_value=150, value=100)
 with col2:
-    monthly_expense = st.number_input("每月生活費用", min_value=1000, value=30000, step=1000)
-    annual_salary = st.number_input("目前年薪", min_value=0, value=1000000, step=10000)
+    monthly_expense = st.number_input("每月生活開銷 (元)", min_value=1000, value=30000, step=1000)
+    annual_salary = st.number_input("目前年薪 (元)", min_value=0, value=1000000, step=10000)
     salary_growth = st.number_input("年薪成長率 (%)", min_value=0.0, value=2.0, step=0.1)
 st.markdown("---")
 col3, col4 = st.columns(2)
 with col3:
-    investable_assets = st.number_input("初始可投資資產", min_value=0, value=1000000, step=10000)
+    investable_assets = st.number_input("初始可投資資產 (元)", min_value=0, value=1000000, step=10000)
 with col4:
     investment_return = st.number_input("投資報酬率 (%)", min_value=0.0, value=5.0, step=0.1)
-retirement_pension = st.number_input("預估每月退休金", min_value=0, value=20000, step=1000)
+retirement_pension = st.number_input("預估每月退休金 (元)", min_value=0, value=20000, step=1000)
 inflation_rate = st.number_input("通膨率 (%)", min_value=0.0, value=2.0, step=0.1)
 
 # ─────────────────────────
 # 二、住房狀況輸入區
 # ─────────────────────────
-st.subheader("住房狀況")
-st.info("住房對退休規劃也非常重要，請根據您的情況選擇租房或購房，Nana會協助您進行比較與規劃。")
-monthly_rent = st.number_input("每月租金", min_value=1000, value=20000, step=1000)
-housing_choice = st.selectbox("住房選擇", ["租房", "購房"])
+st.subheader("🏠 住房狀況")
+st.info("住房可是退休計劃的重要一環哦～選擇租房還是購房，就讓 Nana 為你算算看各自的花費吧！")
+monthly_rent = st.number_input("每月租金 (元)", min_value=1000, value=20000, step=1000)
+housing_choice = st.selectbox("你打算...", ["租房", "購房"])
 if housing_choice == "租房":
     buy_age = current_age  
     home_price = 0
@@ -175,51 +175,51 @@ if housing_choice == "租房":
     loan_term = 0
     loan_rate = 0.0
 else:
-    buy_age = st.number_input("購房年齡", min_value=18, max_value=expected_lifespan, value=40)
+    buy_age = st.number_input("計劃幾歲購房？", min_value=18, max_value=expected_lifespan, value=40)
     # 房屋總價，當用戶調整此欄位時觸發 update_payments()
-    home_price = st.number_input("房屋總價", key="home_price", value=15000000, step=100000, on_change=update_payments)
-    down_payment = st.number_input("首付款", key="down_payment", value=st.session_state.get("down_payment", int(15000000*0.3)), step=100000)
-    loan_amount = st.number_input("貸款金額", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000*0.3)), step=100000)
-    loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=30)
+    home_price = st.number_input("房屋總價 (元)", key="home_price", value=15000000, step=100000, on_change=update_payments)
+    down_payment = st.number_input("首付款 (元)", key="down_payment", value=st.session_state.get("down_payment", int(15000000*0.3)), step=100000)
+    loan_amount = st.number_input("貸款金額 (元)", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000*0.3)), step=100000)
+    loan_term = st.number_input("貸款年期 (年)", min_value=1, max_value=50, value=30)
     loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
 
 # ─────────────────────────
 # 三、一次性支出管理
 # ─────────────────────────
-st.subheader("一次性支出 (偶發性)")
-st.info("如果您預期未來有特殊支出（例如大額醫療費或旅遊計劃），請在這裡記錄，我們會將它們納入規劃中。")
+st.subheader("💸 一次性支出 (偶發性)")
+st.info("有沒有大計劃或突發狀況？把預計的大額支出告訴我，我會一併納入規劃～")
 if "lumpsum_list" not in st.session_state:
     st.session_state["lumpsum_list"] = []
 
 with st.container():
     col_ls1, col_ls2, col_ls3 = st.columns([1, 1, 2])
     with col_ls1:
-        new_age = st.number_input("新增支出 - 年齡", min_value=30, max_value=110, value=40, key="new_age")
+        new_age = st.number_input("新增支出 - 預計年齡", min_value=30, max_value=110, value=40, key="new_age")
     with col_ls2:
-        new_amt = st.number_input("新增支出 - 金額", value=100000, key="new_amt")
+        new_amt = st.number_input("新增支出 - 金額 (元)", value=100000, key="new_amt")
     with col_ls3:
-        submitted_lumpsum = st.button("新增一次性支出")
+        submitted_lumpsum = st.button("加到計劃裡")
     if submitted_lumpsum:
         if new_age >= 30 and new_amt != 0:
             st.session_state["lumpsum_list"].append({"年齡": new_age, "金額": new_amt})
-            st.success(f"已成功新增一次性支出：年齡 {new_age}，金額 {new_amt} 元。")
+            st.success(f"好耶！已加入：年齡 {new_age}，金額 {new_amt} 元。")
             safe_rerun()
         else:
-            st.warning("輸入有誤：年齡必須 ≥ 30 且金額不可為 0。")
+            st.warning("欸～檢查一下輸入，年齡要 ≥ 30 且金額不能為 0。")
 
 if st.session_state["lumpsum_list"]:
-    st.markdown("**目前已新增的一次性支出項目：**")
+    st.markdown("**已加入的一次性支出：**")
     for idx, entry in enumerate(st.session_state["lumpsum_list"]):
         if st.button(f"刪除：年齡 {entry['年齡']}、金額 {entry['金額']}", key=f"del_{idx}"):
             del st.session_state["lumpsum_list"][idx]
-            st.success("已成功刪除該支出項目！")
+            st.success("支出項目已移除！")
             safe_rerun()
 
 # ─────────────────────────
 # 四、計算並顯示預估退休現金流
 # ─────────────────────────
-st.subheader("預估退休現金流")
-with st.spinner("Nana 正在仔細計算您的退休藍圖，請稍候..."):
+st.subheader("📈 預估退休現金流")
+with st.spinner("Nana 正在精打細算，請稍等～"):
     df_result = calculate_retirement_cashflow(
         current_age=current_age,
         retirement_age=retirement_age,
@@ -257,23 +257,23 @@ with st.spinner("Nana 正在仔細計算您的退休藍圖，請稍候..."):
     
     styled_df = df_result.style.format("{:,.0f}").applymap(color_negative_red)
     st.dataframe(styled_df, use_container_width=True)
-st.success("計算完成！以上為根據您資料的退休現金流預估結果。")
+st.success("搞定啦～以上是依據你資料計算出的退休現金流預估！")
 
 # ─────────────────────────
 # 五、退休風格測驗與智能建議報告
 # ─────────────────────────
-st.subheader("退休風格測驗與智能建議報告")
-st.info("來玩個小測驗吧，告訴我您理想中的退休生活風格，Nana 將根據您的答案給出專屬建議！")
-retire_style = st.radio("請問您的理想退休生活風格？", ["低調簡約", "舒適中產", "高端奢華"], key="retire_style")
+st.subheader("🎯 退休風格小測驗 & 建議報告")
+st.info("來點有趣的測驗，告訴我你心目中的退休style～Nana 馬上給你建議！")
+retire_style = st.radio("你理想中的退休生活？", ["低調簡約", "舒適中產", "高端奢華"], key="retire_style")
 if retire_style == "低調簡約":
     recommended_target = 10000000
 elif retire_style == "舒適中產":
     recommended_target = 20000000
 else:
     recommended_target = 50000000
-st.markdown(f"根據您的選擇，推薦的退休目標資產約為 **{recommended_target:,.0f}** 元。")
+st.markdown(f"根據你的選擇，推薦的退休目標資產大約 **{recommended_target:,.0f}** 元。")
 # 用戶可根據推薦值進行調整
-target_asset = st.number_input("請輸入您的退休目標資產（元）", min_value=0, value=recommended_target, step=1000000)
+target_asset = st.number_input("請輸入你的退休目標資產（元）", min_value=0, value=recommended_target, step=1000000)
 
 # 計算退休年齡那一行的累積結餘
 df_basic = df_result["基本資料"]
@@ -282,27 +282,28 @@ retire_idx = df_basic[df_basic["年齡"] == retirement_age].index
 if len(retire_idx) > 0:
     proj_asset = df_balance.loc[retire_idx[0], "累積結餘"]
     gap = target_asset - proj_asset
-    st.markdown(f"在您設定的退休年齡 **{retirement_age}** 歲時，預計累積資產約 **{proj_asset:,.0f}** 元。")
-    st.markdown(f"與您的目標資產 **{target_asset:,.0f}** 元相比，尚有 **{gap:,.0f}** 元的缺口。")
+    st.markdown(f"在你設定的退休年齡 **{retirement_age}** 歲時，預計累積資產大約 **{proj_asset:,.0f}** 元。")
+    st.markdown(f"與目標 **{target_asset:,.0f}** 元相比，還差 **{gap:,.0f}** 元哦～")
     
     # 財務健康指數：計算目標達成百分比
     health_score = int((proj_asset / target_asset) * 100) if target_asset > 0 else 0
-    st.metric(label="📊 財務健康指數", value=f"{health_score} 分", delta=health_score - 80)
+    st.metric(label="💪 財務健康指數", value=f"{health_score} 分", delta=health_score - 80)
     
     if gap > 0:
-        st.markdown("**建議：**")
-        st.markdown("• 您目前的儲蓄與投資計劃可能尚未達到理想狀態，建議您考慮延後退休、增加每月儲蓄或調整投資組合。")
-        st.markdown("• 若需要更多協助，歡迎預約免費的財務規劃諮詢，我們的專家將為您提供專屬策略。")
-        st.markdown('<a href="https://www.gracefo.com" target="_blank"><button style="padding:10px 20px;background-color:#4CAF50;color:white;border:none;border-radius:5px;">立即預約免費諮詢</button></a>', unsafe_allow_html=True)
+        st.markdown("**小建議：**")
+        st.markdown("• 你目前的儲蓄與投資計劃可能還需要加油！")
+        st.markdown("• 建議你考慮延後退休、增加儲蓄或優化投資組合，讓未來更有保障～")
+        st.markdown("• 若想獲得更多專業建議，點此預約免費財規諮詢，Nana 的小夥伴們隨時等你！")
+        st.markdown('<a href="https://www.gracefo.com" target="_blank"><button style="padding:10px 20px;background-color:#4CAF50;color:white;border:none;border-radius:5px;">立即預約</button></a>', unsafe_allow_html=True)
     else:
-        st.markdown("太棒了！看起來您的退休規劃已達標，請持續關注投資與支出動態，保持良好財務習慣。")
+        st.markdown("太讚啦！看來你已經準備得很充分，記得持續關注投資與支出動態，保持好習慣～")
 else:
-    st.markdown("抱歉，無法取得您在退休年齡的累積資產數據，請檢查輸入資料是否正確。")
+    st.markdown("抱歉，無法取得你在退休年齡的累積資產數據，請檢查輸入資料哦。")
 
 # ─────────────────────────
 # 六、圖表呈現：累積結餘趨勢
 # ─────────────────────────
-st.subheader("圖表呈現：累積結餘趨勢")
+st.subheader("📊 累積結餘趨勢圖")
 df_chart = pd.DataFrame({
     "年齡": df_result["基本資料"]["年齡"],
     "累積結餘": df_result["結餘"]["累積結餘"]
@@ -312,15 +313,15 @@ line_chart = alt.Chart(df_chart).mark_line(point=True).encode(
     y=alt.Y("累積結餘:Q", title="累積結餘"),
     tooltip=["年齡", "累積結餘"]
 ).properties(
-    title="累積結餘隨年齡變化"
+    title="隨著年齡累積結餘變化"
 )
 st.altair_chart(line_chart, use_container_width=True)
 
 # ─────────────────────────
 # 七、敏感性分析：通膨率對累積結餘的影響
 # ─────────────────────────
-st.subheader("敏感性分析：通膨率對累積結餘的影響")
-st.info("透過下列圖表，您可以了解不同通膨率情境下的累積結餘走勢，幫助您做更全面的規劃。")
+st.subheader("🔍 通膨敏感性分析")
+st.info("看看不同通膨情境下你的資產累積走勢，讓你更了解未來可能發生的變化～")
 inf_min = st.number_input("最低通膨率 (%)", value=inflation_rate - 1, step=0.1, key="inf_min")
 inf_max = st.number_input("最高通膨率 (%)", value=inflation_rate + 1, step=0.1, key="inf_max")
 inflation_scenarios = np.linspace(inf_min, inf_max, 5)
@@ -360,11 +361,11 @@ inf_chart = alt.Chart(inf_sensitivity_df).mark_line().encode(
     color=alt.Color("通膨率 (%)", title="通膨率 (%)"),
     tooltip=["年齡", "累積結餘", "通膨率 (%)"]
 ).properties(
-    title="不同通膨率情境下累積結餘比較"
+    title="不同通膨率下的累積結餘走勢"
 )
 st.altair_chart(inf_chart, use_container_width=True)
 
 # ─────────────────────────
 # 八、行銷資訊
 # ─────────────────────────
-st.markdown("若您需要更多協助，隨時歡迎造訪 [永傳家族辦公室](https://www.gracefo.com) 或與 Nana 聯繫，我們樂意為您服務！")
+st.markdown("有任何問題或需要進一步協助？快來找 [永傳家族辦公室](https://www.gracefo.com) 或直接找 Nana 聊聊～ 期待與你一起打造美好未來！")
