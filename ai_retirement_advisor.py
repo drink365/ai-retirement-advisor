@@ -3,106 +3,37 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# -----------------------------------------------------------
-# 1) Functions
-# -----------------------------------------------------------
-def parse_lumpsum_rows(
-    edited_df: pd.DataFrame, 
-    initial_df: pd.DataFrame, 
-    current_age: int
-) -> pd.DataFrame:
-    """
-    解析 st.data_editor 回傳的 once-expenses DataFrame(edited_df)，
-    保留預設行的正確值，避免使用者清空或破壞原行導致歸零。
-
-    規則:
-    1. 若 index < len(initial_df)，代表原本預設行
-       - 若使用者輸入不完整/不符合，則 fallback 用 initial_df 的原值
-       - 若成功 parse，則用新值
-    2. 若 index >= len(initial_df) => 新增行
-       - 若 parse 失敗，跳過
-    3. 若 age < current_age 或 amt<=0，跳過
-    最終回傳一個 rows(DataFrame) 皆為「有效 once-expenses」，供後續 lumpsum 計算。
-    """
-
-    result_rows = []
-
-    # original row count
-    default_count = len(initial_df)
-
-    for i, row_data in edited_df.iterrows():
-        # 預設行 or 新增行？
-        is_default_row = (i < default_count)
-
-        # 先取使用者輸入
-        age_raw = str(row_data.get("年齡", "")).strip()
-        amt_raw = str(row_data.get("金額", "")).strip()
-
-        # 取預設原值 (若是預設行)
-        default_age = initial_df.loc[i, "年齡"] if (is_default_row) else ""
-        default_amt = initial_df.loc[i, "金額"] if (is_default_row) else ""
-
-        # 先定義 fallback
-        fallback_age = str(default_age).strip()
-        fallback_amt = str(default_amt).strip()
-
-        # 看看使用者是否完整填寫
-        if age_raw == "" and amt_raw == "" and is_default_row:
-            # 完全沒動 -> 用預設值
-            final_age_raw = fallback_age
-            final_amt_raw = fallback_amt
-        else:
-            # 使用者可能動了，或是新行
-            final_age_raw = age_raw if age_raw else fallback_age
-            final_amt_raw = amt_raw if amt_raw else fallback_amt
-
-        # 轉型
-        try:
-            expense_age = int(final_age_raw)
-            expense_amt = float(final_amt_raw)
-        except (ValueError, TypeError):
-            # 若 parse 失敗 -> 若是預設行, fallback 也失敗? => skip
-            # 或 新增行 => skip
-            continue
-
-        # 判斷 age < current_age or amt <= 0 => skip
-        if expense_age < current_age or expense_amt <= 0:
-            continue
-
-        # OK => 收納
-        result_rows.append({"年齡": expense_age, "金額": expense_amt})
-
-    # 建立新的 DataFrame
-    if result_rows:
-        return pd.DataFrame(result_rows)
-    else:
-        return pd.DataFrame(columns=["年齡","金額"])
-
-
+# ================================
+# 1) 計算退休現金流主函式
+# ================================
 def calculate_retirement_cashflow(
     current_age, retirement_age, expected_lifespan, monthly_expense,
     rent_or_buy, rent_amount, rent_before_buy,
     buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate,
     annual_salary, salary_growth, investable_assets,
     investment_return, inflation_rate, retirement_pension,
-    lumpsum_df
+    lumpsum_list
 ):
     """
-    計算退休現金流:
-    1. 收入: 薪資/投資/退休年金
-    2. 支出: 生活費(含通膨) + 住房費(租房 or 買房) + 一次性支出 lumpsum(不含通膨)
-    3. lumpsum_df => 已篩選有效 once-expenses(年齡>=current_age, amt>0)
+    計算退休現金流，考慮買房/租房與一次性支出。
+    lumpsum_list 為一串 dict，例如: [{"年齡":45,"金額":200000},...]
     """
 
     ages = list(range(current_age, expected_lifespan + 1))
     data = []
     remaining_assets = investable_assets
 
-    # 房貸
+    # 若有貸款 => 每月房貸
     monthly_mortgage = 0
     if loan_amount>0 and loan_term>0:
         lr_monthly = loan_rate/100/12
-        monthly_mortgage = loan_amount*lr_monthly / (1 - (1+lr_monthly)**(-loan_term*12))
+        monthly_mortgage = (
+            loan_amount * lr_monthly
+            / (1 - (1 + lr_monthly)**(-loan_term*12))
+        )
+
+    # 預先把 lumpsum_list 轉成 DF 以便後續查找
+    lumpsum_df = pd.DataFrame(lumpsum_list) if lumpsum_list else pd.DataFrame(columns=["年齡","金額"])
 
     for i, age in enumerate(ages):
         # 薪資
@@ -116,6 +47,7 @@ def calculate_retirement_cashflow(
         # 退休年金
         pension_income = int(retirement_pension*12) if age>retirement_age else 0
 
+        # 總收入
         total_income = salary_income + investment_income + pension_income
 
         # 生活費
@@ -128,47 +60,44 @@ def calculate_retirement_cashflow(
             # 買房
             my = age - buy_age
             if my<0:
-                # 買房前
                 housing_expense = int(rent_before_buy*12)
             elif my==0:
-                # 買房當年 => 頭期 + 年房貸
                 housing_expense = int(down_payment + monthly_mortgage*12)
             elif 0<my<loan_term:
-                # 貸款期
                 housing_expense = int(monthly_mortgage*12)
             else:
-                # 貸款期滿
                 housing_expense = 0
 
-        # 通膨 => base_expense
+        # 通膨 => 經常支出
         base_expense = (living_expense + housing_expense)*((1+inflation_rate/100)**i)
 
-        # 一次性支出 lumpsum(不考慮通膨)
+        # 一次性支出 lumpsum(不計通膨)
         lumpsum_expense = 0
-        for _, row in lumpsum_df.iterrows():
-            if int(row["年齡"]) == age:
-                lumpsum_expense += float(row["金額"])
+        if not lumpsum_df.empty:
+            for _, row in lumpsum_df.iterrows():
+                try:
+                    expense_age = int(row["年齡"])
+                    expense_amt = float(row["金額"])
+                except (ValueError, TypeError):
+                    continue
+                # 若 age>=current_age, expense_amt>0 => valid
+                if (expense_age==age) and (expense_age>=current_age) and (expense_amt>0):
+                    lumpsum_expense += expense_amt
 
         total_expense = int(base_expense) + int(lumpsum_expense)
 
         # 年度結餘
         annual_balance = total_income - total_expense
 
-        # 更新累積結餘
-        remaining_assets = ( (remaining_assets+annual_balance)*(1+investment_return/100) )/(1+inflation_rate/100)
+        # 累積結餘 => (前累積+年結) *投報率 / 通膨
+        remaining_assets = (
+            (remaining_assets+annual_balance)*(1+investment_return/100)
+        )/(1+inflation_rate/100)
 
         data.append([
-            age,
-            salary_income,
-            investment_income,
-            pension_income,
-            total_income,
-            living_expense,
-            housing_expense,
-            lumpsum_expense,
-            total_expense,
-            annual_balance,
-            remaining_assets
+            age, salary_income, investment_income, pension_income,
+            total_income, living_expense, housing_expense, lumpsum_expense,
+            total_expense, annual_balance, remaining_assets
         ])
 
     df = pd.DataFrame(data, columns=[
@@ -200,26 +129,47 @@ def calculate_retirement_cashflow(
     ])
     return df
 
-
 # -----------------------------------------------------------
 # 2) Streamlit App
 # -----------------------------------------------------------
 st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
-# 預設二筆 once-expenses
-default_expenses = pd.DataFrame({
-    "年齡": [45, 60],
-    "金額": [200000, 300000]
-})
+# Step A: 一次性支出管理 (用 session_state)
+if "lumpsum_list" not in st.session_state:
+    # 預設兩筆
+    st.session_state["lumpsum_list"] = [
+        {"年齡":45,"金額":200000},
+        {"年齡":60,"金額":300000},
+    ]
 
-# --- 基本資料 ---
+# 顯示當前一次性支出清單
+st.subheader("目前的一次性支出清單 (年齡≥目前年齡才會生效)")
+df_lumpsum = pd.DataFrame(st.session_state["lumpsum_list"])
+st.dataframe(df_lumpsum)
+
+# 表單：讓使用者新增一筆一次性支出
+st.subheader("新增一次性支出")
+with st.form("add_lumpsum"):
+    new_age = st.number_input("年齡", min_value=0, value=45)
+    new_amt = st.number_input("金額", min_value=0, value=100000)
+    submitted = st.form_submit_button("送出")
+    if submitted:
+        if new_age>0 and new_amt>0:
+            # 加到 lumpsum_list
+            st.session_state["lumpsum_list"].append({"年齡":new_age,"金額":new_amt})
+            st.success(f"已新增一次性支出: 年齡={new_age}, 金額={new_amt}")
+        else:
+            st.warning("年齡、金額必須大於0，才會生效。")
+
+st.markdown("---")
+
+# Step B: 其餘功能 (買房/租房, etc.)
 st.subheader("📌 基本資料")
 current_age = st.number_input("您的目前年齡", min_value=30, max_value=80, value=40)
 retirement_age = st.number_input("您計劃退休的年齡", min_value=current_age+1, max_value=90, value=60)
 expected_lifespan = st.number_input("預期壽命（歲）", min_value=70, max_value=110, value=100)
 
-# --- 家庭與財務狀況 ---
 st.subheader("📌 家庭與財務狀況")
 monthly_expense = st.number_input("每月生活支出（元）", min_value=1000, max_value=500000, value=30000, format="%d")
 annual_salary = st.number_input("目前家庭年薪（元）", min_value=500000, max_value=100000000, value=1000000, format="%d")
@@ -229,75 +179,57 @@ investment_return = st.slider("預期投報率（%）", min_value=0.1, max_value
 inflation_rate = st.slider("通貨膨脹率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
 retirement_pension = st.number_input("退休年金（元/月）", min_value=0, max_value=500000, value=20000, format="%d")
 
-# --- 住房計畫 ---
 st.subheader("📌 住房計畫")
 rent_or_buy = st.radio("您的住房計畫", ["租房","買房"])
 
-rent_amount = 0
-rent_before_buy = 0
-if rent_or_buy == "租房":
+if rent_or_buy=="租房":
     rent_amount = st.number_input("每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
-    buy_age= home_price= down_payment= loan_amount= loan_term= loan_rate= 0
+    rent_before_buy=0
+    buy_age=home_price=down_payment=loan_amount=loan_term=loan_rate=0
     monthly_mortgage_temp=0
 else:
+    rent_amount=0
     rent_before_buy = st.number_input("買房前每月租金（元）", min_value=0, max_value=500000, value=20000, format="%d")
 
-    buy_age = st.number_input("計劃買房年齡", min_value=0, max_value=80, value=30)
+    buy_age= st.number_input("計劃買房年齡", min_value=0, max_value=80, value=30)
     home_price = st.number_input("預計買房價格（元）", min_value=0, value=15000000, format="%d")
-    down_payment = st.number_input("頭期款（元）", min_value=0, value=int(home_price*0.3), format="%d")
+    down_payment= st.number_input("頭期款（元）", min_value=0, value=int(home_price*0.3), format="%d")
     loan_amount = st.number_input("貸款金額（元）", min_value=0, value=home_price-down_payment, format="%d")
-    loan_term = st.number_input("貸款年限（年）", min_value=1, max_value=30, value=20)
-    loan_rate = st.number_input("貸款利率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
+    loan_term= st.number_input("貸款年限（年）", min_value=1, max_value=30, value=20)
+    loan_rate= st.number_input("貸款利率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
 
     if loan_amount>0 and loan_term>0:
-        lr_monthly = loan_rate/100/12
-        monthly_mortgage_temp = lr_monthly*loan_amount / (1-(1+lr_monthly)**(-loan_term*12))
+        lr_monthly= loan_rate/100/12
+        monthly_mortgage_temp = lr_monthly*loan_amount/(1-(1+lr_monthly)**(-loan_term*12))
     else:
         monthly_mortgage_temp=0
 
-    st.subheader("每月房貸")
-    st.write(f"{monthly_mortgage_temp:,.0f} 元")
+    st.write(f"每月房貸: {monthly_mortgage_temp:,.0f} 元")
 
-# --- 其它一次性支出 ---
-st.subheader("📌 其它一次性支出")
-st.write(f"若年齡<{current_age}或金額<=0或非數字 => 跳過。")
 
-edited_df = st.data_editor(
-    default_expenses,
-    num_rows="dynamic"
-)
-
-# --- 解析 once-expenses, 保留預設行 ---
-parsed_df = parse_lumpsum_rows(
-    edited_df,
-    default_expenses,
-    current_age
-)
-
-# --- 計算退休現金流 ---
-data_df = calculate_retirement_cashflow(
+# Step C: 計算退休現金流 (把 lumpsum_list 傳入)
+df_result = calculate_retirement_cashflow(
     current_age, retirement_age, expected_lifespan,
     monthly_expense, rent_or_buy, rent_amount, rent_before_buy,
     buy_age, home_price, down_payment, loan_amount, loan_term, loan_rate,
     annual_salary, salary_growth, investable_assets,
     investment_return, inflation_rate, retirement_pension,
-    parsed_df  # 已經處理 fallback, parse pass
+    st.session_state["lumpsum_list"]  # 直接傳 list of dict
 )
 
-# --- 數據格式化 & 負數標紅 & 千分號 ---
+# 美化負數 & 千分位
 def style_negative(val):
-    color = "red" if (isinstance(val, (int,float)) and val<0) else "black"
+    color = "red" if (isinstance(val,(int,float)) and val<0) else "black"
     return f"color: {color}"
 
-styled_df = data_df.style
-all_columns = data_df.columns
-styled_df = styled_df.applymap(style_negative, subset=pd.IndexSlice[:,all_columns])
-styled_df = styled_df.format("{:,.0f}", subset=pd.IndexSlice[:,all_columns])
+styled_df = df_result.style
+all_cols = df_result.columns
+styled_df = styled_df.applymap(style_negative, subset=pd.IndexSlice[:, all_cols])
+styled_df = styled_df.format("{:,.0f}", subset=pd.IndexSlice[:, all_cols])
 
-# --- 顯示結果 ---
-st.dataframe(styled_df)
+st.subheader("計算結果")
+st.dataframe(styled_df,use_container_width=True)
 
-# --- 更多貼心提醒 ---
 st.markdown("""
 ### 更多貼心提醒
 
