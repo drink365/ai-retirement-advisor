@@ -16,22 +16,22 @@ def calculate_retirement_cashflow(
     """
     計算退休現金流，考慮:
       - 收入 (薪資、投資、退休年金)
-      - 支出 (生活費、住房費)
+      - 支出 (生活費、住房費、一次性支出)
       - 貸款年限 (buy_age 可小於 current_age, 表示已繳一部分房貸)
       - 投資報酬、通膨影響
       - 預期壽命計算到最後一年
       - 一次性支出 (不考慮通膨)，在當年直接扣除 lumpsum
 
     更新：
-    1. 使用 st.data_editor 來輸入多筆一次性支出 (year, amount)。
-       lumpsum 在當年發生時直接扣除，不做通膨調整。
-    2. 「剩餘資產」欄位改為「累積結餘」，年度結餘 & 累積結餘置於「結餘」分群。
-    3. 每月房貸欄位僅在「買房」時才顯示。
-    4. 允許 buy_age < current_age (已在過去買房，房貸只需繳剩餘年限)。
+    1. 「年齡」取代「年份」。
+    2. 在主表格中新增「一次性支出」欄位，方便使用者直接看到每年的一次性支出。
+    3. 「剩餘資產」改為「累積結餘」，年度結餘 & 累積結餘置於「結餘」分群。
+    4. 每月房貸僅在「買房」時才顯示。
+    5. 允許 buy_age < current_age (已在過去買房，房貸只需繳剩餘年限)。
     """
 
     # 年度列表 (從目前年齡一路到預期壽命)
-    years = list(range(current_age, expected_lifespan + 1))
+    ages = list(range(current_age, expected_lifespan + 1))
     data = []
     remaining_assets = investable_assets
 
@@ -44,10 +44,10 @@ def calculate_retirement_cashflow(
             / (1 - (1 + loan_rate_monthly) ** (-loan_term * 12))
         )
 
-    for i, year in enumerate(years):
+    for i, age in enumerate(ages):
         # 薪資 (退休後無)
-        salary_income = int(annual_salary) if year <= retirement_age else 0
-        if year < retirement_age:
+        salary_income = int(annual_salary) if age <= retirement_age else 0
+        if age < retirement_age:
             annual_salary *= (1 + salary_growth / 100)
 
         # 投資收益
@@ -56,7 +56,7 @@ def calculate_retirement_cashflow(
             if remaining_assets > 0 else 0
         )
         # 退休年金
-        pension_income = int(retirement_pension * 12) if year > retirement_age else 0
+        pension_income = int(retirement_pension * 12) if age > retirement_age else 0
         total_income = salary_income + investment_income + pension_income
 
         # 生活費用
@@ -66,7 +66,7 @@ def calculate_retirement_cashflow(
         if rent_or_buy == "租房":
             housing_expense = int(rent_amount * 12)
         else:
-            mortgage_year = year - buy_age
+            mortgage_year = age - buy_age
             if mortgage_year < 0:
                 # 尚未買房
                 housing_expense = 0
@@ -84,9 +84,9 @@ def calculate_retirement_cashflow(
         base_expense = (living_expense + housing_expense) * ((1 + inflation_rate / 100) ** i)
 
         # 一次性支出 lumpsum，不做通膨
-        # 注意: other_expenses 是 DataFrame，列出多筆 (年份, 金額)
+        # 注意: other_expenses 是 DataFrame，列出多筆 (年齡, 金額)
         lumpsum_expense = sum(
-            row["金額"] for _, row in other_expenses.iterrows() if int(row["年份"]) == year
+            row["金額"] for _, row in other_expenses.iterrows() if int(row["年齡"]) == age
         )
 
         # 總支出 = (經常支出 + lumpsum)
@@ -103,51 +103,64 @@ def calculate_retirement_cashflow(
         )
 
         data.append([
-            year,
+            age,
             salary_income,
             investment_income,
             pension_income,
             total_income,
             living_expense,
             housing_expense,
+            lumpsum_expense,   # 新增：一次性支出
             total_expense,
             annual_balance,
             remaining_assets
         ])
 
+    # 建立 DataFrame
     df = pd.DataFrame(data, columns=[
-        "年份", "薪資收入", "投資收益", "退休年金",
-        "總收入", "生活費用", "住房費用", "總支出",
-        "年度結餘", "剩餘資產"
+        "年齡",            # 原先「年份」改為「年齡」
+        "薪資收入",
+        "投資收益",
+        "退休年金",
+        "總收入",
+        "生活費用",
+        "住房費用",
+        "一次性支出",      # 新增欄位
+        "總支出",
+        "年度結餘",
+        "剩餘資產"
     ])
+
+    # 將 "剩餘資產" 改為 "累積結餘"
     df.rename(columns={"剩餘資產": "累積結餘"}, inplace=True)
 
-    # 多層表頭
+    # 建立多層表頭：收入/支出/結餘
     df = df[
         [
-            "年份",
+            "年齡",
             "薪資收入", "投資收益", "退休年金", "總收入",
-            "生活費用", "住房費用", "總支出",
+            "生活費用", "住房費用", "一次性支出", "總支出",
             "年度結餘", "累積結餘"
         ]
     ]
     df.columns = pd.MultiIndex.from_tuples([
-        ("", "年份"),
+        ("", "年齡"),
         ("收入", "薪資收入"),
         ("收入", "投資收益"),
         ("收入", "退休年金"),
         ("收入", "總收入"),
         ("支出", "生活費用"),
         ("支出", "住房費用"),
+        ("支出", "一次性支出"),
         ("支出", "總支出"),
         ("結餘", "年度結餘"),
         ("結餘", "累積結餘"),
     ])
     return df
 
-# -----------------------------------------------------------
+# ============================================================
 # 2) Streamlit App
-# -----------------------------------------------------------
+# ============================================================
 st.set_page_config(page_title="AI 退休顧問", layout="wide")
 st.header("📢 AI 智能退休顧問")
 
@@ -177,6 +190,7 @@ if rent_or_buy == "租房":
     monthly_mortgage_temp = 0
 else:
     rent_amount = 0
+    # 允許設定買房年齡可小於當前年齡
     buy_age = st.number_input("計劃買房年齡", min_value=0, max_value=80, value=30)
     home_price = st.number_input("預計買房價格（元）", min_value=0, value=15000000, format="%d")
     down_payment = st.number_input("頭期款（元）", min_value=0, value=int(home_price*0.3), format="%d")
@@ -184,6 +198,7 @@ else:
     loan_term = st.number_input("貸款年限（年）", min_value=1, max_value=30, value=20)
     loan_rate = st.number_input("貸款利率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
 
+    # 計算即時每月房貸
     if loan_amount > 0 and loan_term > 0:
         lr_monthly = loan_rate / 100 / 12
         monthly_mortgage_temp = (
@@ -202,12 +217,12 @@ if rent_or_buy == "買房":
 # 其它一次性支出 (多筆, 不考慮通膨)
 # -----------------------------------------------------------
 st.subheader("📌 其它一次性支出")
-st.write("若某一年發生大額支出，可在下表中輸入年份、金額，程式會將該年度支出直接扣除(不考慮通膨)。")
+st.write("若某一年發生大額支出，可在下表中輸入【年齡】與【金額】，程式會將該年度支出直接扣除 (不考慮通膨)。")
 
-# 建立一個初始範例 DataFrame
+# 建立一個初始範例 DataFrame (欄位為「年齡」、「金額」)
 initial_df = pd.DataFrame({
-    "年份": [45, 60],
-    "金額": [200000, 300000],  # 可自行預設或留空
+    "年齡": [45, 60],
+    "金額": [200000, 300000],
 })
 
 # 使用 st.data_editor 讓使用者自由增減
