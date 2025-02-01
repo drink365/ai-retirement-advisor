@@ -163,9 +163,9 @@ with st.expander("基本資料", expanded=True):
 # 二、住房狀況輸入區
 # ─────────────────────────
 with st.expander("住房狀況", expanded=True):
-    # 先讓用戶選擇住房選擇
+    # 將住房選擇放在最上方，預設為「租房」
     housing_choice = st.selectbox("住房選擇", ["租房", "購房"], index=0)
-    # 輸入每月租金，預設 25,000 元
+    # 每月租金預設 25,000 元
     monthly_rent = st.number_input("每月租金", min_value=1000, value=25000, step=1000)
     if housing_choice == "租房":
         buy_age = current_age  
@@ -177,8 +177,8 @@ with st.expander("住房狀況", expanded=True):
     else:
         buy_age = st.number_input("購房年齡", min_value=18, max_value=expected_lifespan, value=40)
         home_price = st.number_input("房屋總價", key="home_price", value=15000000, step=100000, on_change=update_payments)
-        down_payment = st.number_input("首付款", key="down_payment", value=st.session_state.get("down_payment", int(15000000*0.3)), step=100000)
-        loan_amount = st.number_input("貸款金額", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000*0.3)), step=100000)
+        down_payment = st.number_input("首付款", key="down_payment", value=st.session_state.get("down_payment", int(15000000 * 0.3)), step=100000)
+        loan_amount = st.number_input("貸款金額", key="loan_amount", value=st.session_state.get("loan_amount", 15000000 - int(15000000 * 0.3)), step=100000)
         loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=30)
         loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=3.0, step=0.1)
 
@@ -279,6 +279,12 @@ with st.expander("退休風格測驗與智能建議報告", expanded=True):
         st.markdown(f"與您的目標資產 **{target_asset:,.0f}** 元相比，尚有 **{gap:,.0f}** 元的缺口。")
         health_score = int((proj_asset / target_asset) * 100) if target_asset > 0 else 0
         st.metric(label="📊 財務健康指數", value=f"{health_score} 分", delta=health_score - 80)
+        st.info(
+            "【財務健康指數說明】\n"
+            "此指數是根據您在退休年齡時預計累積資產與您設定的退休目標資產之比率計算得出，\n"
+            "即 (預計累積資產 / 目標資產) * 100 分。指數越高代表您的退休規劃越健康，\n"
+            "通常 80 分以上被視為財務狀況良好。"
+        )
         if gap > 0:
             st.markdown("**建議：**")
             st.markdown("• 您目前的儲蓄與投資計劃可能不足以達成您的退休目標。")
