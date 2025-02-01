@@ -126,32 +126,40 @@ st.header("📢 AI 智能退休顧問")
 # -----------------------------
 with st.form("retirement_parameters"):
     st.subheader("退休規劃參數")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        current_age = st.number_input("目前年齡", min_value=18, max_value=100, value=40)
-        retirement_age = st.number_input("退休年齡", min_value=current_age, max_value=100, value=60)
-        expected_lifespan = st.number_input("預期壽命", min_value=retirement_age, max_value=150, value=100)
-    with col2:
-        monthly_expense = st.number_input("每月生活費用", min_value=1000, value=30000, step=1000)
-        rent_or_buy = st.selectbox("住房選擇", ["租房", "購房"])
+    current_age = st.number_input("目前年齡", min_value=18, max_value=100, value=40)
+    retirement_age = st.number_input("退休年齡", min_value=current_age, max_value=100, value=60)
+    expected_lifespan = st.number_input("預期壽命", min_value=retirement_age, max_value=150, value=100)
+    
+    monthly_expense = st.number_input("每月生活費用", min_value=1000, value=30000, step=1000)
+    
+    # 住房選擇
+    rent_or_buy = st.selectbox("住房選擇", ["租房", "購房"])
+    if rent_or_buy == "租房":
+        rent_amount = st.number_input("租金金額", min_value=1000, value=20000, step=1000)
+        rent_before_buy = st.number_input("租房前租金", min_value=1000, value=20000, step=1000)
+        # 當為租房時，購房相關欄位不顯示，並以預設值代替
+        buy_age = current_age  # 不影響計算
+        home_price = 0
+        down_payment = 0
+        loan_amount = 0
+        loan_term = 0
+        loan_rate = 0.0
+    else:
         rent_amount = st.number_input("租金金額", min_value=1000, value=20000, step=1000)
         rent_before_buy = st.number_input("購房前租金", min_value=1000, value=20000, step=1000)
-    with col3:
         buy_age = st.number_input("購房年齡", min_value=current_age, max_value=expected_lifespan, value=48)
         home_price = st.number_input("房屋總價", min_value=0, value=15000000, step=100000)
         down_payment = st.number_input("首付款", min_value=0, value=4500000, step=100000)
         loan_amount = st.number_input("貸款金額", min_value=0, value=10500000, step=100000)
         loan_term = st.number_input("貸款年期", min_value=1, max_value=50, value=20)
         loan_rate = st.number_input("貸款利率 (%)", min_value=0.0, value=2.0, step=0.1)
-    col4, col5 = st.columns(2)
-    with col4:
-        annual_salary = st.number_input("年薪", min_value=0, value=1000000, step=10000)
-        salary_growth = st.number_input("年薪成長率 (%)", min_value=0.0, value=2.0, step=0.1)
-    with col5:
-        investable_assets = st.number_input("初始可投資資產", min_value=0, value=1000000, step=10000)
-        investment_return = st.number_input("投資報酬率 (%)", min_value=0.0, value=5.0, step=0.1)
-        inflation_rate = st.number_input("通膨率 (%)", min_value=0.0, value=2.0, step=0.1)
-        retirement_pension = st.number_input("退休月退休金", min_value=0, value=20000, step=1000)
+    
+    annual_salary = st.number_input("年薪", min_value=0, value=1000000, step=10000)
+    salary_growth = st.number_input("年薪成長率 (%)", min_value=0.0, value=2.0, step=0.1)
+    investable_assets = st.number_input("初始可投資資產", min_value=0, value=1000000, step=10000)
+    investment_return = st.number_input("投資報酬率 (%)", min_value=0.0, value=5.0, step=0.1)
+    inflation_rate = st.number_input("通膨率 (%)", min_value=0.0, value=2.0, step=0.1)
+    retirement_pension = st.number_input("退休月退休金", min_value=0, value=20000, step=1000)
     
     submit_params = st.form_submit_button("更新退休參數")
 
