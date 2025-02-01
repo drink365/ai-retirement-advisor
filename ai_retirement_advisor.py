@@ -35,7 +35,7 @@ def calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan
                 housing_expense = int(monthly_mortgage * 12)
             else:
                 housing_expense = 0
-        total_expense = living_expense + housing_expense
+        total_expense = (living_expense + housing_expense) * ((1 + inflation_rate / 100) ** (year - current_age))
         
         annual_balance = total_income - total_expense
         remaining_assets += annual_balance
