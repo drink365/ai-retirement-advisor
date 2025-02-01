@@ -72,24 +72,19 @@ else:
     loan_term = st.number_input("貸款年限（年）", min_value=1, max_value=40, value=30)
     loan_rate = st.slider("房貸利率（%）", min_value=0.1, max_value=10.0, value=3.0, step=0.1)
 
-st.subheader("📌 财务状况")
+st.subheader("📌 財務狀況")
 annual_salary = st.number_input("目前家庭年薪（元）", min_value=500000, max_value=100000000, value=1000000, format="%d")
-salary_growth = st.slider("预計薪资成长率（%）", min_value=0.0, max_value=10.0, value=2.0, step=0.1)
-investable_assets = st.number_input("目前可投资之资金（元）", min_value=0, max_value=1000000000, value=1000000, format="%d")
-investment_return = st.slider("预期投报率（%）", min_value=0.1, max_value=10.0, value=5.0, step=0.1)
-inflation_rate = st.slider("通货膨胀率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
+salary_growth = st.slider("預計薪資成長率（%）", min_value=0.0, max_value=10.0, value=2.0, step=0.1)
+investable_assets = st.number_input("目前可投資之資金（元）", min_value=0, max_value=1000000000, value=1000000, format="%d")
+investment_return = st.slider("預期投報率（%）", min_value=0.1, max_value=10.0, value=5.0, step=0.1)
+inflation_rate = st.slider("通貨膨脹率（%）", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
 retirement_pension = st.number_input("退休年金（元/月）", min_value=0, max_value=500000, value=20000, format="%d")
 
 data = calculate_retirement_cashflow(current_age, retirement_age, expected_lifespan, monthly_expense, rent_or_buy, rent_amount,
                                      buy_age, home_price, down_payment, loan_term, loan_rate, annual_salary, salary_growth,
                                      investable_assets, investment_return, inflation_rate, retirement_pension)
 
-df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退休年金", "總收入",
-                                 "家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"])
+df = pd.DataFrame(data, columns=["年齡", "薪資收入", "投資收入", "退休年金", "總收入","家庭開銷", "住房支出", "總支出", "年度結餘", "累積結餘"])
 df = df.style.applymap(lambda x: 'color: red;' if isinstance(x, (int, float)) and x < 0 else '', subset=["年度結餘", "累積結餘"])
-for col in df.columns[1:]:
-    df[col] = df[col].astype(str).str.replace(',', '')
-    df[col] = df[col].apply(lambda x: f"{int(float(x)):,}" if x.replace('-', '').isdigit() else x)
-    df[col] = df[col].apply(lambda x: f"{int(float(x)):,}" if isinstance(x, (int, float)) and not pd.isna(x) else x)
 st.subheader("📊 退休現金流預測")
 st.markdown(df.to_html(escape=False), unsafe_allow_html=True)
